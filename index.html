@@ -35,8 +35,9 @@
         <div class="difficulty-select">
             <label>Pilih Kesulitan:</label>
             <select id="startLevel">
+                <option value="" selected>Pilih Kesulitan</option>
                 <option value="easy">Mudah (2x2)</option>
-                <option value="medium" selected>Sedang (3x2)</option>
+                <option value="medium">Sedang (3x2)</option>
                 <option value="hard">Sulit (4x4)</option>
             </select>
         </div>
@@ -47,7 +48,7 @@
             <button class="btn" id="shopBtn">Shop</button>
         </nav>
 
-        <p class="credit">DIBUAT OLEH CAHYO DENGAN SEPENUH HATI ❤️</p>
+        <p class="credit">TERIMAKASIH TELAH BERMAIN GAME INI ❤️</p>
     </main>
 
     <div class="game-screen" id="gameScreen">
@@ -76,7 +77,8 @@
                 <div class="stat">Waktu: <span id="timer">00:00</span></div>
                 <div class="stat">Langkah: <span id="moves">0</span></div>
                 <div class="stat">Koin: <span id="coins">0</span></div>
-                <div class="stat">Bintang: <span id="stars">1000</span></div>
+                <div class="stat">Skor: <span id="score">0</span></div>
+                <div class="stat">Best Skor: <span id="bestScore">0</span></div>
             </div>
 
             <button class="btn back-btn" id="backBtn">Kembali</button>
