@@ -668,6 +668,76 @@ h1 {
   margin-top: 30px;
 }
 
+.shop-items {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.shop-item {
+  background: linear-gradient(135deg, rgba(47, 140, 255, 0.1) 0%, rgba(187, 134, 252, 0.1) 100%);
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  min-width: 150px;
+  max-width: 200px;
+}
+
+.shop-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.shop-item:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.shop-item:hover::before {
+  opacity: 1;
+}
+
+.shop-item img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.shop-item h3 {
+  margin: 10px 0;
+  color: white;
+  font-size: 16px;
+}
+
+.shop-item p {
+  margin: 5px 0 15px;
+  color: #bb86fc;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.shop-item .btn {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+}
+
 /* Game Over Notification */
 .game-over-notification {
   display: none;
