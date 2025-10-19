@@ -1,6 +1,0 @@
-- [x] Add media queries for tablet (max-width: 768px)
-- [x] Add media queries for mobile (max-width: 480px)
-- [x] Adjust game board grid for smaller screens
-- [x] Scale down fonts, padding, and margins for mobile
-- [x] Make controls and stats responsive
-- [x] Test responsiveness in browser
