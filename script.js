@@ -14,6 +14,12 @@ const skins = [
         name: 'JOKER',
         images: ['JOKER/1.jpeg', 'JOKER/2.jpeg', 'JOKER/3.jpeg', 'JOKER/4.jpeg', 'JOKER/5.jpeg', 'JOKER/6.jpeg', 'JOKER/7.jpeg', 'JOKER/8.jpeg'],
         cost: 100
+    },
+    {
+        id: 'sri_ira',
+        name: 'SRI IRA',
+        images: ['SRI IRA/ira3.jpeg', 'SRI IRA/ira2.jpeg', 'SRI IRA/ira1.jpeg', 'SRI IRA/ira4.jpeg', 'SRI IRA/sri1.jpeg', 'SRI IRA/sri2.jpeg', 'SRI IRA/sri3.jpeg', 'SRI IRA/sri4.jpeg'],
+        cost: 200
     }
 ];
 
@@ -21,16 +27,197 @@ const skins = [
 let ownedSkins = JSON.parse(localStorage.getItem('ownedSkins')) || ['fajri'];
 let activeSkin = localStorage.getItem('activeSkin') || 'fajri';
 
+// Sound settings
+let soundEnabled = localStorage.getItem('soundEnabled') !== 'false'; // Default true
+let backgroundMusicSource = null; // For background music
+
+// Global audio context
+let audioContext;
+
+function getAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContext;
+}
+
+// Sound function using Web Audio API to generate procedural sounds
+async function playSound(soundType) {
+    if (!soundEnabled) return;
+
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+        await ctx.resume();
+    }
+
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    switch (soundType) {
+        case 'flip':
+            // Short high-pitched beep for flip
+            oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.1);
+            break;
+        case 'match':
+            // Pleasant ascending tone for match
+            oscillator.frequency.setValueAtTime(523, ctx.currentTime); // C5
+            oscillator.frequency.setValueAtTime(659, ctx.currentTime + 0.1); // E5
+            oscillator.frequency.setValueAtTime(784, ctx.currentTime + 0.2); // G5
+            oscillator.type = 'triangle';
+            gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.3);
+            break;
+        case 'gameOver':
+            // Low descending tone for game over
+            oscillator.frequency.setValueAtTime(220, ctx.currentTime); // A3
+            oscillator.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.5); // A2
+            oscillator.type = 'sawtooth';
+            gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.5);
+            break;
+        case 'shuffle':
+            // Series of quick notes for shuffle
+            const frequencies = [440, 554, 659, 880]; // A4, C#5, E5, A5
+            frequencies.forEach((freq, index) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + index * 0.1);
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.1, ctx.currentTime + index * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + index * 0.1 + 0.08);
+                osc.start(ctx.currentTime + index * 0.1);
+                osc.stop(ctx.currentTime + index * 0.1 + 0.08);
+            });
+            break;
+        case 'click':
+            // Short click sound
+            oscillator.frequency.setValueAtTime(1000, ctx.currentTime);
+            oscillator.type = 'square';
+            gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.05);
+            break;
+        case 'notification':
+            // Pleasant chime for notifications
+            oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+            oscillator.frequency.setValueAtTime(1000, ctx.currentTime + 0.1);
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.2);
+            break;
+        case 'countdown':
+            // Ticking sound for countdown
+            oscillator.frequency.setValueAtTime(600, ctx.currentTime);
+            oscillator.type = 'square';
+            gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.1);
+            break;
+        default:
+            return;
+    }
+}
+
+// Background music function
+async function playBackgroundMusic() {
+    if (!soundEnabled || backgroundMusicSource) return; // Don't play if disabled or already playing
+
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+        await ctx.resume();
+    }
+
+    // Create a simple looping melody
+    const melody = [
+        { freq: 523, duration: 0.5 }, // C5
+        { freq: 659, duration: 0.5 }, // E5
+        { freq: 784, duration: 0.5 }, // G5
+        { freq: 659, duration: 0.5 }, // E5
+        { freq: 523, duration: 0.5 }, // C5
+        { freq: 440, duration: 0.5 }, // A4
+        { freq: 523, duration: 1.0 }, // C5 (longer)
+        { freq: 0, duration: 0.5 },   // Rest
+        { freq: 587, duration: 0.5 }, // D5
+        { freq: 698, duration: 0.5 }, // F5
+        { freq: 784, duration: 0.5 }, // G5
+        { freq: 698, duration: 0.5 }, // F5
+        { freq: 587, duration: 0.5 }, // D5
+        { freq: 523, duration: 0.5 }, // C5
+        { freq: 587, duration: 1.0 }, // D5 (longer)
+    ];
+
+    let currentTime = ctx.currentTime;
+    const loopLength = melody.reduce((sum, note) => sum + note.duration, 0);
+
+    function playMelody() {
+        let timeOffset = 0;
+        melody.forEach(note => {
+            if (note.freq > 0) {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.frequency.setValueAtTime(note.freq, currentTime + timeOffset);
+                osc.type = 'sine';
+
+                gain.gain.setValueAtTime(0.1, currentTime + timeOffset);
+                gain.gain.exponentialRampToValueAtTime(0.01, currentTime + timeOffset + note.duration * 0.8);
+
+                osc.start(currentTime + timeOffset);
+                osc.stop(currentTime + timeOffset + note.duration);
+            }
+            timeOffset += note.duration;
+        });
+
+        // Schedule next loop
+        currentTime += loopLength;
+        if (backgroundMusicSource) { // Check if still playing
+            setTimeout(playMelody, loopLength * 1000);
+        }
+    }
+
+    backgroundMusicSource = {}; // Mark as playing
+    playMelody();
+}
+
+function stopBackgroundMusic() {
+    backgroundMusicSource = null; // Stop the loop
+}
+
 let board = [];
 let flippedCards = [];
 let matchedPairs = 0;
 let moves = 0;
 let timer = 0;
-let score = 1000; // Skor dasar, bertambah 100 per match
+let score = 0; // Skor awal 0, bertambah berdasarkan performa
+let bestScore = parseInt(localStorage.getItem('bestScore')) || 0; // Best score dari localStorage
 let totalCoins = 0; // Total koin yang diperoleh
 let timerInterval;
 let gameStarted = false;
+let gameOver = false;
 let levelSize = 3; // Default sedang (3x2 = 3 pairs)
+let maxMoves = 0; // Batas maksimal langkah berdasarkan level
+let timeLimit = 0; // Batas waktu berdasarkan level
 
 // Element references
 const gameBoard = document.getElementById('gameBoard');
@@ -39,7 +226,8 @@ const playerNameEl = document.getElementById('playerName');
 const timerEl = document.getElementById('timer');
 const movesEl = document.getElementById('moves');
 const coinsEl = document.getElementById('coins');
-const starsEl = document.getElementById('stars');
+const scoreEl = document.getElementById('score');
+const bestScoreEl = document.getElementById('bestScore');
 const backBtn = document.getElementById('backBtn');
 const shopBtn = document.getElementById('shopBtn');
 
@@ -54,6 +242,7 @@ const skinsScreen = document.querySelector('.skins-screen');
 const skinsBtn = document.getElementById('skinsBtn');
 
 levelSelect.addEventListener('change', (e) => {
+    playSound('click');
     if (gameStarted) return; // Jangan ganti level saat main
     if (e.target.value === 'easy') {
         levelSize = 2;
@@ -68,6 +257,7 @@ levelSelect.addEventListener('change', (e) => {
 });
 
 startLevelEl.addEventListener('change', (e) => {
+    playSound('click');
     if (e.target.value === 'easy') {
         showCustomNotification('Level Mudah Dipilih', 'hah yakin nih 2x2?? ezz bgtt');
     } else if (e.target.value === 'medium') {
@@ -81,17 +271,39 @@ startLevelEl.addEventListener('change', (e) => {
 function startGame() {
     if (gameStarted) return;
     gameStarted = true;
+    gameOver = false;
     moves = 0;
     timer = 0;
     matchedPairs = 0;
-    score = 1000; // Reset skor dasar
+    score = 0; // Reset skor ke 0
     totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0; // Load total coins from localStorage
     flippedCards = [];
+
+    // Set max moves berdasarkan level
+    if (levelSize === 2) maxMoves = 3; // Easy: 3 moves max
+    else if (levelSize === 3) maxMoves = 6; // Medium: 6 moves max
+    else if (levelSize === 4) maxMoves = 16; // Hard: 16 moves max
+
+    // Set time limit berdasarkan level
+    if (levelSize === 2) timeLimit = 10; // Easy: 10 seconds
+    else if (levelSize === 3) timeLimit = 30; // Medium: 30 seconds
+    else if (levelSize === 4) timeLimit = 120; // Hard: 2 minutes
+
     updateDisplay();
     clearInterval(timerInterval);
     timerInterval = setInterval(() => {
         timer++;
-        timerEl.textContent = formatTime(timer);
+        timerEl.textContent = `${formatTime(timer)} / ${formatTime(timeLimit)}`;
+        if (timer >= timeLimit && !gameOver) {
+            gameOver = true;
+            playSound('gameOver'); // Play game over sound
+            showCustomNotification('Game Over', 'Waktu habis!\n COBALAH LAGI');
+            clearInterval(timerInterval);
+            setTimeout(() => {
+                resetGame();
+                showStartScreen();
+            }, 3000); // Delay to show notification before returning to start screen
+        }
         updateDisplay(); // Update skor real-time dengan timer
     }, 1000);
 
@@ -105,11 +317,11 @@ function resetGame() {
     timer = 0;
     moves = 0;
     matchedPairs = 0;
-    score = 1000;
+    score = 0;
     flippedCards = [];
     timerEl.textContent = '00:00';
     movesEl.textContent = '0';
-    starsEl.textContent = '1000';
+    scoreEl.textContent = '0';
     gameBoard.innerHTML = '';
 }
 
@@ -138,6 +350,12 @@ function initBoard() {
         img.src = animal;
         img.alt = animal.replace('.jpeg', '');
         img.style.display = 'none'; // Sembunyikan gambar awalnya
+        // Perbesar gambar ira1 dan sri2
+        if (animal.includes('ira1.jpeg') || animal.includes('sri2.jpeg')) {
+            img.style.width = '105%';
+            img.style.height = '105%';
+            img.style.objectFit = 'cover';
+        }
         card.appendChild(img);
         card.addEventListener('click', flipCard);
         gameBoard.appendChild(card);
@@ -146,8 +364,9 @@ function initBoard() {
 
 // Flip kartu
 function flipCard(e) {
-    if (flippedCards.length >= 2 || this.classList.contains('flipped') || this.classList.contains('matched') || !gameStarted) return;
+    if (flippedCards.length >= 2 || this.classList.contains('flipped') || this.classList.contains('matched') || !gameStarted || gameOver) return;
 
+    playSound('flip'); // Play flip sound
     this.classList.add('flipped');
     const img = this.querySelector('img');
     img.style.display = 'block'; // Tampilkan gambar saat flip
@@ -156,6 +375,17 @@ function flipCard(e) {
 
     if (flippedCards.length === 2) {
         moves++;
+        if (moves > maxMoves && !gameOver) {
+            gameOver = true;
+            playSound('gameOver'); // Play game over sound
+            showCustomNotification('Game Over', 'Kamu telah mencapai batas langkah maksimal!\n COBALAH LAGI');
+            clearInterval(timerInterval);
+            setTimeout(() => {
+                resetGame();
+                showStartScreen();
+            }, 3000); // Delay to show notification before returning to start screen
+            return;
+        }
         checkMatch();
         updateDisplay();
     }
@@ -165,10 +395,16 @@ function flipCard(e) {
 function checkMatch() {
     const [card1, card2] = flippedCards;
     if (card1.dataset.animal === card2.dataset.animal) {
+        playSound('match'); // Play match sound
         card1.classList.add('matched');
         card2.classList.add('matched');
         matchedPairs++; // Tambah matched pairs
         score += 100; // Tambah skor per match
+        // Update best score if current score is higher
+        if (score > bestScore) {
+            bestScore = score;
+            localStorage.setItem('bestScore', bestScore);
+        }
         totalCoins += 10; // Tambah koin per match
         localStorage.setItem('totalCoins', totalCoins); // Save to localStorage
         animateCoinInCard(card1); // Animasi koin dari kartu pertama
@@ -180,7 +416,14 @@ function checkMatch() {
         else if (levelSize === 3) totalPairs = 3;
         else if (levelSize === 4) totalPairs = 8;
         if (matchedPairs === totalPairs) {
+            // Update best score if current score is higher
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('bestScore', bestScore);
+                updateDisplay(); // Update display to show new best score
+            }
             setTimeout(() => {
+                playSound('shuffle'); // Play shuffle sound
                 shuffleBoard();
             }, 1000); // Delay before shuffle
         }
@@ -201,9 +444,10 @@ function checkMatch() {
 
 // Update display
 function updateDisplay() {
-    movesEl.textContent = moves;
+    movesEl.textContent = `${moves}/${maxMoves}`;
     coinsEl.textContent = totalCoins;
-    starsEl.textContent = score;
+    scoreEl.textContent = score;
+    bestScoreEl.textContent = bestScore;
 }
 
 // Format waktu
@@ -243,15 +487,44 @@ function shuffleBoard() {
 
     // Step 3: After collecting, shuffle and spread back
     setTimeout(() => {
-        // Shuffle the card data
-        const cardData = cards.map(card => card.dataset.animal);
-        shuffleArray(cardData);
-        cards.forEach((card, index) => {
-            card.dataset.animal = cardData[index];
-            const img = card.querySelector('img');
-            img.src = cardData[index];
-            img.alt = cardData[index].replace('.jpeg', '');
-        });
+        const pairsNeeded = cards.length / 2;
+        const activeSkinData = skins.find(skin => skin.id === activeSkin);
+
+        if (levelSize === 2 || levelSize === 3) {
+            // For 2x2 and 3x3, select new random images from skin
+            const shuffledImages = [...activeSkinData.images];
+            shuffleArray(shuffledImages);
+            const selectedAnimals = shuffledImages.slice(0, pairsNeeded);
+            const cardData = [...selectedAnimals, ...selectedAnimals]; // Duplikat untuk pair
+            shuffleArray(cardData); // Shuffle posisi
+
+            cards.forEach((card, index) => {
+                card.dataset.animal = cardData[index];
+                const img = card.querySelector('img');
+                img.src = cardData[index];
+                img.alt = cardData[index].replace('.jpeg', '');
+                // Apply special styling for ira1 and sri2
+                if (cardData[index].includes('ira1.jpeg') || cardData[index].includes('sri2.jpeg')) {
+                    img.style.width = '120%';
+                    img.style.height = '120%';
+                    img.style.objectFit = 'cover';
+                } else {
+                    img.style.width = '';
+                    img.style.height = '';
+                    img.style.objectFit = '';
+                }
+            });
+        } else {
+            // For other levels, just shuffle positions
+            const cardData = cards.map(card => card.dataset.animal);
+            shuffleArray(cardData);
+            cards.forEach((card, index) => {
+                card.dataset.animal = cardData[index];
+                const img = card.querySelector('img');
+                img.src = cardData[index];
+                img.alt = cardData[index].replace('.jpeg', '');
+            });
+        }
 
         // Spread cards back to grid positions
         cards.forEach((card, index) => {
@@ -260,9 +533,12 @@ function shuffleBoard() {
             }, index * 50);
         });
 
-        // Reset matched pairs for next round
+        // Reset matched pairs, moves, and timer for next round
         setTimeout(() => {
             matchedPairs = 0;
+            moves = 0;
+            timer = 0;
+            updateDisplay();
         }, cards.length * 50 + 500);
     }, cards.length * 50 + 1000);
 }
@@ -300,28 +576,35 @@ function showSkinsScreen() {
 
 // Event listeners for navigation
 mulaiBtn.addEventListener('click', () => {
+    playSound('click');
     const playerName = startPlayerNameEl.value.trim();
     const selectedLevel = startLevelEl.value;
-    if (playerName) {
-        playerNameEl.value = playerName; // Copy name to game screen
-        // Set level based on start screen selection
-        levelSelect.value = selectedLevel;
-        if (selectedLevel === 'easy') levelSize = 2;
-        else if (selectedLevel === 'medium') levelSize = 3;
-        else if (selectedLevel === 'hard') levelSize = 4;
-        // Skip start screen and go directly to game screen
-        startScreen.style.display = 'none';
-        gameScreen.style.display = 'block';
-        startGame(); // Auto start game when entering game screen
-    } else {
-        showCustomNotification('Nama Diperlukan', 'Masukkan nama pemain terlebih dahulu!');
+    if (!selectedLevel) {
+        showCustomNotification('Kesulitan Diperlukan', 'Pilih tingkat kesulitan terlebih dahulu!');
+        return;
     }
+    if (!playerName) {
+        showCustomNotification('Nama Diperlukan', 'Masukkan nama pemain terlebih dahulu!');
+        return;
+    }
+    playerNameEl.value = playerName; // Copy name to game screen
+    // Set level based on start screen selection
+    levelSelect.value = selectedLevel;
+    if (selectedLevel === 'easy') levelSize = 2;
+    else if (selectedLevel === 'medium') levelSize = 3;
+    else if (selectedLevel === 'hard') levelSize = 4;
+    // Skip start screen and go directly to game screen
+    startScreen.style.display = 'none';
+    gameScreen.style.display = 'block';
+    startGame(); // Auto start game when entering game screen
 });
 shopBtn.addEventListener('click', () => {
+    playSound('click');
     showShopScreen();
     updateShopCoins(); // Update shop coins when entering shop
 });
 skinsBtn.addEventListener('click', () => {
+    playSound('click');
     showSkinsScreen();
     updateSkinsCoins(); // Update skins coins when entering skins
 });
@@ -458,6 +741,7 @@ function buySkin(skinId) {
         localStorage.setItem('activeSkin', activeSkin);
         showCustomNotification(`${skin.name} Skin Diaktifkan!`, 'Kartu telah berhasil diaktifkan.');
         renderSkins();
+        renderShop(); // Update shop display
     } else if (totalCoins >= skin.cost) {
         totalCoins -= skin.cost;
         localStorage.setItem('totalCoins', totalCoins);
@@ -469,13 +753,15 @@ function buySkin(skinId) {
         updateSkinsCoins();
         showCustomNotification(`${skin.name} Skin Dibeli!`, 'Kartu telah berhasil dibeli dan diaktifkan.');
         renderSkins();
+        renderShop(); // Update shop display after purchase
     } else {
-        alert('Koin tidak cukup!');
+        showCustomNotification('Koin Tidak Cukup', 'Anda tidak memiliki cukup koin untuk membeli skin ini!');
     }
 }
 
 // Fungsi show custom notification
 function showCustomNotification(title, message) {
+    playSound('notification'); // Play notification sound when showing notification
     const notification = document.getElementById('customNotification');
     const titleEl = document.getElementById('notificationTitle');
     const messageEl = document.getElementById('notificationMessage');
@@ -504,7 +790,10 @@ function renderSkins() {
 
     skinsGrid.innerHTML = '';
 
-    skins.forEach(skin => {
+    // Filter hanya skins yang sudah owned
+    const ownedSkinsData = skins.filter(skin => ownedSkins.includes(skin.id));
+
+    ownedSkinsData.forEach(skin => {
         const skinItem = document.createElement('div');
         skinItem.classList.add('skin-item');
         if (activeSkin === skin.id) {
@@ -615,6 +904,21 @@ function createSparkles(card) {
 document.addEventListener('DOMContentLoaded', () => {
     renderSkins();
     renderShop();
+
+    // Initialize audio context on first user interaction
+    const initAudio = async () => {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') {
+            await ctx.resume();
+        }
+        // Start background music after audio context is initialized
+        playBackgroundMusic();
+        document.removeEventListener('click', initAudio);
+        document.removeEventListener('keydown', initAudio);
+    };
+    document.addEventListener('click', initAudio);
+    document.addEventListener('keydown', initAudio);
+
     // Start entrance animation
     setTimeout(() => {
         document.querySelector('.meteor').style.animation = 'meteorFallExplosion 3s ease-in-out forwards';
