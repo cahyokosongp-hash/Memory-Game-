@@ -44,6 +44,7 @@
 
         <nav class="start-buttons">
             <button class="btn primary" id="mulaiBtn">Mulai</button>
+            <button class="btn" id="leaderboardBtn">Leaderboard</button>
             <button class="btn" id="skinsBtn">Skins</button>
             <button class="btn" id="shopBtn">Shop</button>
         </nav>
@@ -105,6 +106,16 @@
         <button class="btn back-btn">Kembali</button>
     </div>
 
+    <div class="leaderboard-screen">
+        <h1>🏆 Leaderboard Global 🏆</h1>
+        <div class="leaderboard-container" id="leaderboardContainer">
+            <div class="leaderboard-entry loading">
+                <div class="rank">Memuat leaderboard...</div>
+            </div>
+        </div>
+        <button class="btn back-btn">Kembali</button>
+    </div>
+
     <!-- Custom Notification -->
     <div id="customNotification" class="custom-notification">
         <div class="notification-content">
@@ -113,6 +124,53 @@
             <button class="btn" id="closeNotification">OK</button>
         </div>
     </div>
+
+    <!-- Firebase SDK v8 (compatible with script tags) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBwkRCXNRPVhXNkJC4_xzQc0a6KqYSViWI",
+            authDomain: "memory-game-leaderboard-e3f8f.firebaseapp.com",
+            projectId: "memory-game-leaderboard-e3f8f",
+            storageBucket: "memory-game-leaderboard-e3f8f.firebasestorage.app",
+            messagingSenderId: "1069482034483",
+            appId: "1:1069482034483:web:5f3ce8313a19bee6386a46",
+            measurementId: "G-5XH38KK6G8"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        firebase.analytics();
+
+        // Initialize Firestore
+        const db = firebase.firestore();
+
+        // Make db available globally
+        window.db = db;
+        window.collection = (dbInstance, path) => dbInstance.collection(path);
+        window.doc = (db, collectionName, docId) => db.collection(collectionName).doc(docId);
+        window.setDoc = (ref, data) => ref.set(data);
+        window.getDoc = (ref) => ref.get();
+        window.addDoc = (collectionRef, data) => collectionRef.add(data);
+        window.query = (collectionRef, ...constraints) => {
+            let q = collectionRef;
+            constraints.forEach(constraint => {
+                if (constraint.type === 'orderBy') {
+                    q = q.orderBy(constraint.field, constraint.direction || 'asc');
+                } else if (constraint.type === 'limit') {
+                    q = q.limit(constraint.value);
+                }
+            });
+            return q;
+        };
+        window.orderBy = (field, direction) => ({ type: 'orderBy', field, direction });
+        window.limit = (num) => ({ type: 'limit', value: num });
+        window.getDocs = (query) => query.get();
+        window.onSnapshot = (query, callback) => query.onSnapshot(callback);
+    </script>
 
     <script src="script.js"></script>
 </body>
