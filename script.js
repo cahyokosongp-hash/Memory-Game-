@@ -216,6 +216,7 @@ let timerInterval;
 let gameStarted = false;
 let gameOver = false;
 let levelSize = 3; // Default sedang (3x2 = 3 pairs)
+let levelName = 'medium'; // Default level name
 let maxMoves = 0; // Batas maksimal langkah berdasarkan level
 let timeLimit = 0; // Batas waktu berdasarkan level
 
@@ -239,19 +240,24 @@ const startLevelEl = document.getElementById('startLevel');
 const gameScreen = document.getElementById('gameScreen');
 const shopScreen = document.querySelector('.shop-screen');
 const skinsScreen = document.querySelector('.skins-screen');
+const leaderboardScreen = document.querySelector('.leaderboard-screen');
 const skinsBtn = document.getElementById('skinsBtn');
+const leaderboardBtn = document.getElementById('leaderboardBtn');
 
 levelSelect.addEventListener('change', (e) => {
     playSound('click');
     if (gameStarted) return; // Jangan ganti level saat main
     if (e.target.value === 'easy') {
         levelSize = 2;
+        levelName = 'easy';
         showCustomNotification('Level Mudah Dipilih', 'hah yakin nih 2x2?? ezz bgtt');
     } else if (e.target.value === 'medium') {
         levelSize = 3;
+        levelName = 'medium';
         showCustomNotification('Level Sedang Dipilih', 'halah nanggung banget mending sulit');
     } else if (e.target.value === 'hard') {
         levelSize = 4;
+        levelName = 'hard';
         showCustomNotification('Level Sulit Dipilih', 'nah gitu dong baru mantap');
     }
 });
@@ -259,10 +265,13 @@ levelSelect.addEventListener('change', (e) => {
 startLevelEl.addEventListener('change', (e) => {
     playSound('click');
     if (e.target.value === 'easy') {
+        levelName = 'easy';
         showCustomNotification('Level Mudah Dipilih', 'hah yakin nih 2x2?? ezz bgtt');
     } else if (e.target.value === 'medium') {
+        levelName = 'medium';
         showCustomNotification('Level Sedang Dipilih', 'halah nanggung banget mending sulit');
     } else if (e.target.value === 'hard') {
+        levelName = 'hard';
         showCustomNotification('Level Sulit Dipilih', 'nah gitu dong baru mantap');
     }
 });
@@ -422,6 +431,9 @@ function checkMatch() {
                 localStorage.setItem('bestScore', bestScore);
                 updateDisplay(); // Update display to show new best score
             }
+            // Save score to leaderboard
+            const playerName = playerNameEl.value.trim() || 'Anonymous';
+            saveScoreToLeaderboard(playerName, score, levelName);
             setTimeout(() => {
                 playSound('shuffle'); // Play shuffle sound
                 shuffleBoard();
@@ -467,6 +479,9 @@ function shuffleArray(array) {
 
 // Shuffle board animation
 function shuffleBoard() {
+    // Pause the timer during shuffle
+    clearInterval(timerInterval);
+
     const cards = Array.from(gameBoard.children);
     const centerX = gameBoard.offsetWidth / 2;
     const centerY = gameBoard.offsetHeight / 2;
@@ -533,12 +548,28 @@ function shuffleBoard() {
             }, index * 50);
         });
 
-        // Reset matched pairs, moves, and timer for next round
+        // Reset matched pairs, moves, and timer for next round, then resume timer
         setTimeout(() => {
             matchedPairs = 0;
             moves = 0;
             timer = 0;
             updateDisplay();
+            // Resume the timer after shuffle completes
+            timerInterval = setInterval(() => {
+                timer++;
+                timerEl.textContent = `${formatTime(timer)} / ${formatTime(timeLimit)}`;
+                if (timer >= timeLimit && !gameOver) {
+                    gameOver = true;
+                    playSound('gameOver'); // Play game over sound
+                    showCustomNotification('Game Over', 'Waktu habis!\n COBALAH LAGI');
+                    clearInterval(timerInterval);
+                    setTimeout(() => {
+                        resetGame();
+                        showStartScreen();
+                    }, 3000); // Delay to show notification before returning to start screen
+                }
+                updateDisplay(); // Update skor real-time dengan timer
+            }, 1000);
         }, cards.length * 50 + 500);
     }, cards.length * 50 + 1000);
 }
@@ -551,6 +582,7 @@ function showStartScreen() {
     gameScreen.style.display = 'none';
     shopScreen.style.display = 'none';
     skinsScreen.style.display = 'none';
+    leaderboardScreen.style.display = 'none';
 }
 
 function showGameScreen() {
@@ -558,6 +590,7 @@ function showGameScreen() {
     gameScreen.style.display = 'block';
     shopScreen.style.display = 'none';
     skinsScreen.style.display = 'none';
+    leaderboardScreen.style.display = 'none';
 }
 
 function showShopScreen() {
@@ -565,6 +598,7 @@ function showShopScreen() {
     gameScreen.style.display = 'none';
     shopScreen.style.display = 'block';
     skinsScreen.style.display = 'none';
+    leaderboardScreen.style.display = 'none';
 }
 
 function showSkinsScreen() {
@@ -572,6 +606,15 @@ function showSkinsScreen() {
     gameScreen.style.display = 'none';
     shopScreen.style.display = 'none';
     skinsScreen.style.display = 'block';
+    leaderboardScreen.style.display = 'none';
+}
+
+function showLeaderboardScreen() {
+    startScreen.style.display = 'none';
+    gameScreen.style.display = 'none';
+    shopScreen.style.display = 'none';
+    skinsScreen.style.display = 'none';
+    leaderboardScreen.style.display = 'block';
 }
 
 // Event listeners for navigation
@@ -608,6 +651,7 @@ skinsBtn.addEventListener('click', () => {
     showSkinsScreen();
     updateSkinsCoins(); // Update skins coins when entering skins
 });
+
 backBtn.addEventListener('click', () => {
     resetGame();
     showStartScreen();
@@ -629,6 +673,207 @@ if (skinsBackBtn) {
         showStartScreen();
         updateSkinsCoins(); // Update skins coins when returning to start screen
     });
+}
+
+// Add back button to leaderboard screen
+const leaderboardBackBtn = document.querySelector('.leaderboard-screen .back-btn');
+if (leaderboardBackBtn) {
+    leaderboardBackBtn.addEventListener('click', () => {
+        showStartScreen();
+    });
+}
+
+// Load leaderboard when entering leaderboard screen
+leaderboardBtn.addEventListener('click', () => {
+    playSound('click');
+    showLeaderboardScreen();
+    loadLeaderboard();
+});
+
+// Fungsi load leaderboard lokal dengan opsi sync Firebase
+function loadLeaderboard() {
+    const leaderboardContainer = document.getElementById('leaderboardContainer');
+    if (!leaderboardContainer) return;
+
+    leaderboardContainer.innerHTML = '<div class="leaderboard-entry loading"><div class="rank">Memuat leaderboard...</div></div>';
+
+    // Load from local storage first
+    const localScores = JSON.parse(localStorage.getItem('localLeaderboard') || '[]');
+
+    // Sort by score descending
+    localScores.sort((a, b) => b.score - a.score);
+
+    // Display local leaderboard
+    displayLeaderboard(localScores.slice(0, 10));
+
+    // Try to sync with Firebase if available
+    if (window.db && window.collection && window.onSnapshot) {
+        try {
+            const leaderboardRef = window.collection(window.db, 'leaderboard');
+
+            // Set up real-time listener for Firebase
+            window.onSnapshot(leaderboardRef, (querySnapshot) => {
+                const firebaseScores = [];
+                querySnapshot.forEach((doc) => {
+                    const playerName = doc.id;
+                    const data = doc.data();
+                    const scores = data.scores || [];
+                    scores.forEach(scoreData => {
+                        firebaseScores.push({
+                            name: playerName,
+                            score: scoreData.score || 0,
+                            level: scoreData.level || 'unknown',
+                            timestamp: scoreData.timestamp ? new Date(scoreData.timestamp.seconds * 1000) : new Date(),
+                            source: 'firebase'
+                        });
+                    });
+                });
+
+                // Merge local and Firebase scores, remove duplicates by name (keep highest score)
+                const mergedScores = [...localScores, ...firebaseScores];
+                const uniqueScores = mergedScores.reduce((acc, current) => {
+                    const existing = acc.find(item => item.name === current.name);
+                    if (!existing || current.score > existing.score) {
+                        acc = acc.filter(item => item.name !== current.name);
+                        acc.push(current);
+                    }
+                    return acc;
+                }, []);
+
+                // Sort and display merged leaderboard
+                uniqueScores.sort((a, b) => b.score - a.score);
+                displayLeaderboard(uniqueScores.slice(0, 10));
+
+                // Save merged data to local storage
+                localStorage.setItem('localLeaderboard', JSON.stringify(uniqueScores));
+            }, (error) => {
+                console.warn('Firebase sync failed, using local leaderboard:', error);
+                // Continue with local leaderboard
+            });
+        } catch (error) {
+            console.warn('Firebase not properly initialized, using local leaderboard:', error);
+            // Continue with local leaderboard
+        }
+    }
+}
+
+// Fungsi display leaderboard
+function displayLeaderboard(scores) {
+    const leaderboardContainer = document.getElementById('leaderboardContainer');
+    if (!leaderboardContainer) return;
+
+    leaderboardContainer.innerHTML = '';
+
+    if (scores.length === 0) {
+        leaderboardContainer.innerHTML = '<div class="leaderboard-entry empty"><div class="rank">Belum ada skor yang tercatat.</div></div>';
+        return;
+    }
+
+    scores.forEach((score, index) => {
+        const entry = document.createElement('div');
+        entry.classList.add('leaderboard-entry');
+        if (index < 3) {
+            entry.classList.add(['gold', 'silver', 'bronze'][index]);
+        }
+
+        const dateStr = score.timestamp instanceof Date ?
+            score.timestamp.toLocaleDateString() :
+            new Date(score.timestamp).toLocaleDateString();
+
+        entry.innerHTML = `
+            <div class="rank">#${index + 1}</div>
+            <div class="name">${score.name}</div>
+            <div class="score">${score.score}</div>
+            <div class="level">${score.level}</div>
+            <div class="date">${dateStr}</div>
+        `;
+        leaderboardContainer.appendChild(entry);
+    });
+}
+
+// Fungsi save score ke leaderboard
+function saveScoreToLeaderboard(name, score, level) {
+    console.log('Attempting to save score:', { name, score, level });
+
+    if (!name || !name.trim()) {
+        name = 'Anonymous';
+        console.log('Name was empty, using Anonymous');
+    }
+
+    const playerName = name.trim();
+    const newScore = {
+        score: score,
+        level: level,
+        timestamp: new Date()
+    };
+
+    console.log('New score object:', newScore);
+
+    // Save to local storage
+    const localScores = JSON.parse(localStorage.getItem('localLeaderboard') || '[]');
+    console.log('Current local scores count:', localScores.length);
+
+    // Add new score with player name
+    const localScoreWithName = { ...newScore, name: playerName };
+    localScores.push(localScoreWithName);
+    console.log('New score saved locally');
+
+    // Keep only top 50 scores to prevent storage bloat
+    localScores.sort((a, b) => b.score - a.score);
+    const topScores = localScores.slice(0, 50);
+    localStorage.setItem('localLeaderboard', JSON.stringify(topScores));
+    console.log('Local leaderboard updated, top scores count:', topScores.length);
+
+    // Try to sync with Firebase if available
+    console.log('Checking Firebase availability...');
+    console.log('window.db exists:', !!window.db);
+    console.log('window.doc exists:', !!window.doc);
+    console.log('window.getDoc exists:', !!window.getDoc);
+    console.log('window.setDoc exists:', !!window.setDoc);
+
+    if (window.db && window.doc && window.getDoc && window.setDoc) {
+        console.log('Firebase functions available, attempting sync...');
+        try {
+            const playerDocRef = window.doc(window.db, 'leaderboard', playerName);
+            console.log('Created player docRef for:', playerName);
+
+            window.getDoc(playerDocRef).then((docSnap) => {
+                console.log('getDoc result - exists:', docSnap.exists);
+                let scores = [];
+                if (docSnap.exists) {
+                    scores = docSnap.data().scores || [];
+                    console.log('Existing scores for player:', scores.length);
+                } else {
+                    console.log('No existing document for player, creating new');
+                }
+
+                // Add new score to array
+                scores.push(newScore);
+                console.log('Updated scores array length:', scores.length);
+
+                // Save back to Firebase
+                return window.setDoc(playerDocRef, { scores: scores });
+            }).then(() => {
+                console.log('Score synced with Firebase successfully for player:', playerName);
+            }).catch((error) => {
+                console.error('Firebase sync failed:', error);
+                console.error('Error details:', {
+                    code: error.code,
+                    message: error.message,
+                    stack: error.stack
+                });
+            });
+        } catch (error) {
+            console.error('Firebase setup error:', error);
+            console.error('Error details:', {
+                code: error.code,
+                message: error.message,
+                stack: error.stack
+            });
+        }
+    } else {
+        console.warn('Firebase not available, skipping sync');
+    }
 }
 
 // Fungsi animasi koin
