@@ -259,6 +259,10 @@ levelSelect.addEventListener('change', (e) => {
         levelSize = 4;
         levelName = 'hard';
         showCustomNotification('Level Sulit Dipilih', 'nah gitu dong baru mantap');
+    } else if (e.target.value === 'hell') {
+        levelSize = 4;
+        levelName = 'hell';
+        showCustomNotification('Level Neraka Dipilih', 'Siap-siap menderita! Kartu akan kocok otomatis jika salah.');
     }
 });
 
@@ -273,6 +277,9 @@ startLevelEl.addEventListener('change', (e) => {
     } else if (e.target.value === 'hard') {
         levelName = 'hard';
         showCustomNotification('Level Sulit Dipilih', 'nah gitu dong baru mantap');
+    } else if (e.target.value === 'hell') {
+        levelName = 'hell';
+        showCustomNotification('Level Neraka Dipilih', 'Siap-siap menderita! Kartu akan kocok otomatis jika salah.');
     }
 });
 
@@ -293,9 +300,12 @@ function startGame() {
     else if (levelSize === 3) maxMoves = 6; // Medium: 6 moves max
     else if (levelSize === 4) maxMoves = 16; // Hard: 16 moves max
 
+    // Remove move limit for hell mode
+    if (levelName === 'hell') maxMoves = 10000;
+
     // Set time limit berdasarkan level
-    if (levelSize === 2) timeLimit = 10; // Easy: 10 seconds
-    else if (levelSize === 3) timeLimit = 30; // Medium: 30 seconds
+    if (levelSize === 2) timeLimit = 8; // Easy: 10 seconds
+    else if (levelSize === 3) timeLimit = 20; // Medium: 30 seconds
     else if (levelSize === 4) timeLimit = 120; // Hard: 2 minutes
 
     updateDisplay();
@@ -303,6 +313,7 @@ function startGame() {
     timerInterval = setInterval(() => {
         timer++;
         timerEl.textContent = `${formatTime(timer)} / ${formatTime(timeLimit)}`;
+
         if (timer >= timeLimit && !gameOver) {
             gameOver = true;
             playSound('gameOver'); // Play game over sound
@@ -408,7 +419,10 @@ function checkMatch() {
         card1.classList.add('matched');
         card2.classList.add('matched');
         matchedPairs++; // Tambah matched pairs
-        score += 100; // Tambah skor per match
+        // Tambah skor berdasarkan level
+        if (levelSize === 2) score += 25; // Easy: 25 poin per match
+        else if (levelSize === 3) score += 50; // Medium: 50 poin per match
+        else if (levelSize === 4) score += 150; // Hard: 150 poin per match
         // Update best score if current score is higher
         if (score > bestScore) {
             bestScore = score;
@@ -447,6 +461,13 @@ function checkMatch() {
             const img2 = card2.querySelector('img');
             img1.style.display = 'none';
             img2.style.display = 'none';
+
+            // For hell mode, shuffle on mismatch
+            if (levelName === 'hell') {
+                setTimeout(() => {
+                    shuffleBoard();
+                }, 500); // Small delay after hiding
+            }
         }, 1000);
     }
     flippedCards = [];
@@ -636,6 +657,7 @@ mulaiBtn.addEventListener('click', () => {
     if (selectedLevel === 'easy') levelSize = 2;
     else if (selectedLevel === 'medium') levelSize = 3;
     else if (selectedLevel === 'hard') levelSize = 4;
+    else if (selectedLevel === 'hell') levelSize = 4;
     // Skip start screen and go directly to game screen
     startScreen.style.display = 'none';
     gameScreen.style.display = 'block';
@@ -690,6 +712,32 @@ leaderboardBtn.addEventListener('click', () => {
     loadLeaderboard();
 });
 
+// Current leaderboard filter
+let currentLeaderboardFilter = 'all';
+
+// Fungsi filter leaderboard
+function filterLeaderboard(filter) {
+    currentLeaderboardFilter = filter;
+    loadLeaderboard();
+}
+
+// Event listeners untuk filter buttons
+document.addEventListener('DOMContentLoaded', () => {
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    filterButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            playSound('click');
+            // Remove active class from all buttons
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            e.target.classList.add('active');
+            // Filter leaderboard
+            const filter = e.target.dataset.filter;
+            filterLeaderboard(filter);
+        });
+    });
+});
+
 // Fungsi load leaderboard lokal dengan opsi sync Firebase
 function loadLeaderboard() {
     const leaderboardContainer = document.getElementById('leaderboardContainer');
@@ -703,8 +751,8 @@ function loadLeaderboard() {
     // Sort by score descending
     localScores.sort((a, b) => b.score - a.score);
 
-    // Display local leaderboard
-    displayLeaderboard(localScores.slice(0, 10));
+    // Filter scores based on current filter
+    const filteredLocalScores = currentLeaderboardFilter === 'all' ? localScores : localScores.filter(score => score.level === currentLeaderboardFilter);
 
     // Try to sync with Firebase if available
     if (window.db && window.collection && window.onSnapshot) {
@@ -719,41 +767,67 @@ function loadLeaderboard() {
                     const data = doc.data();
                     const scores = data.scores || [];
                     scores.forEach(scoreData => {
-                        firebaseScores.push({
-                            name: playerName,
-                            score: scoreData.score || 0,
-                            level: scoreData.level || 'unknown',
-                            timestamp: scoreData.timestamp ? new Date(scoreData.timestamp.seconds * 1000) : new Date(),
-                            source: 'firebase'
-                        });
+                        const score = scoreData.score || 0;
+                        // Only include scores greater than 0
+                        if (score > 0) {
+                            let timestamp;
+                            if (scoreData.timestamp && typeof scoreData.timestamp.toDate === 'function') {
+                                // Firestore Timestamp
+                                timestamp = scoreData.timestamp.toDate();
+                            } else if (scoreData.timestamp instanceof Date) {
+                                timestamp = scoreData.timestamp;
+                            } else if (typeof scoreData.timestamp === 'string') {
+                                timestamp = new Date(scoreData.timestamp);
+                            } else {
+                                timestamp = new Date();
+                            }
+                            firebaseScores.push({
+                                name: playerName,
+                                score: score,
+                                level: scoreData.level || 'unknown',
+                                timestamp: timestamp,
+                                source: 'firebase'
+                            });
+                        }
                     });
                 });
 
-                // Merge local and Firebase scores, remove duplicates by name (keep highest score)
-                const mergedScores = [...localScores, ...firebaseScores];
-                const uniqueScores = mergedScores.reduce((acc, current) => {
-                    const existing = acc.find(item => item.name === current.name);
-                    if (!existing || current.score > existing.score) {
-                        acc = acc.filter(item => item.name !== current.name);
-                        acc.push(current);
-                    }
-                    return acc;
-                }, []);
+                let finalScores;
+                if (firebaseScores.length > 0) {
+                    // Use Firebase data if available (prioritize Firebase for admin edits)
+                    finalScores = firebaseScores;
+                } else {
+                    // If Firebase is empty (e.g., after reset), clear local storage and use empty list
+                    finalScores = [];
+                    localStorage.setItem('localLeaderboard', JSON.stringify([]));
+                }
 
-                // Sort and display merged leaderboard
-                uniqueScores.sort((a, b) => b.score - a.score);
-                displayLeaderboard(uniqueScores.slice(0, 10));
+                // Sort by score descending (highest first)
+                finalScores.sort((a, b) => b.score - a.score);
 
-                // Save merged data to local storage
-                localStorage.setItem('localLeaderboard', JSON.stringify(uniqueScores));
+                // Filter scores based on current filter
+                const filteredFinalScores = currentLeaderboardFilter === 'all' ? finalScores : finalScores.filter(score => score.level === currentLeaderboardFilter);
+
+                displayLeaderboard(filteredFinalScores.slice(0, 10));
+
+                // Save final data to local storage (only if Firebase has data)
+                if (firebaseScores.length > 0) {
+                    localStorage.setItem('localLeaderboard', JSON.stringify(finalScores));
+                }
             }, (error) => {
                 console.warn('Firebase sync failed, using local leaderboard:', error);
-                // Continue with local leaderboard
+                showCustomNotification('Sync Error', 'Failed to sync with online leaderboard. Using local data.');
+                // Fall back to local leaderboard
+                displayLeaderboard(filteredLocalScores.slice(0, 10));
             });
         } catch (error) {
             console.warn('Firebase not properly initialized, using local leaderboard:', error);
-            // Continue with local leaderboard
+            // Fall back to local leaderboard
+            displayLeaderboard(filteredLocalScores.slice(0, 10));
         }
+    } else {
+        // No Firebase, use local leaderboard
+        displayLeaderboard(filteredLocalScores.slice(0, 10));
     }
 }
 
@@ -769,16 +843,42 @@ function displayLeaderboard(scores) {
         return;
     }
 
-    scores.forEach((score, index) => {
+    // Sort all scores by score descending
+    scores.sort((a, b) => b.score - a.score);
+
+    scores.slice(0, 10).forEach((score, index) => {
         const entry = document.createElement('div');
         entry.classList.add('leaderboard-entry');
         if (index < 3) {
             entry.classList.add(['gold', 'silver', 'bronze'][index]);
         }
 
-        const dateStr = score.timestamp instanceof Date ?
-            score.timestamp.toLocaleDateString() :
-            new Date(score.timestamp).toLocaleDateString();
+        let dateStr;
+        try {
+            let date;
+            if (score.timestamp && typeof score.timestamp.toDate === 'function') {
+                // Firestore Timestamp
+                date = score.timestamp.toDate();
+            } else if (score.timestamp instanceof Date) {
+                date = score.timestamp;
+            } else if (typeof score.timestamp === 'string') {
+                date = new Date(score.timestamp);
+            } else if (typeof score.timestamp === 'number') {
+                date = new Date(score.timestamp);
+            } else {
+                date = null;
+            }
+            if (date && !isNaN(date.getTime())) {
+                const day = date.getDate().toString().padStart(2, '0');
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const year = date.getFullYear();
+                dateStr = `${day}/${month}/${year}`;
+            } else {
+                dateStr = 'N/A';
+            }
+        } catch (e) {
+            dateStr = 'N/A';
+        }
 
         entry.innerHTML = `
             <div class="rank">#${index + 1}</div>
@@ -804,19 +904,20 @@ function saveScoreToLeaderboard(name, score, level) {
     const newScore = {
         score: score,
         level: level,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
     };
 
     console.log('New score object:', newScore);
 
-    // Save to local storage
+    // Save to local storage - keep all scores
     const localScores = JSON.parse(localStorage.getItem('localLeaderboard') || '[]');
     console.log('Current local scores count:', localScores.length);
 
-    // Add new score with player name
     const localScoreWithName = { ...newScore, name: playerName };
+
+    // Always add new score
     localScores.push(localScoreWithName);
-    console.log('New score saved locally');
+    console.log('New score saved locally for player:', playerName);
 
     // Keep only top 50 scores to prevent storage bloat
     localScores.sort((a, b) => b.score - a.score);
@@ -847,12 +948,20 @@ function saveScoreToLeaderboard(name, score, level) {
                     console.log('No existing document for player, creating new');
                 }
 
-                // Add new score to array
-                scores.push(newScore);
-                console.log('Updated scores array length:', scores.length);
+                // Find the highest score for this player
+                const currentMaxScore = scores.length > 0 ? Math.max(...scores.map(s => s.score)) : 0;
 
-                // Save back to Firebase
-                return window.setDoc(playerDocRef, { scores: scores });
+                if (newScore.score > currentMaxScore) {
+                    // Update to only keep the new highest score
+                    scores = [newScore];
+                    console.log('Updated to new highest score for player:', playerName);
+
+                    // Save back to Firebase
+                    return window.setDoc(playerDocRef, { scores: scores });
+                } else {
+                    console.log('New score not higher than existing max, skipping Firebase update for player:', playerName);
+                    return Promise.resolve(); // No update needed
+                }
             }).then(() => {
                 console.log('Score synced with Firebase successfully for player:', playerName);
             }).catch((error) => {
@@ -1163,6 +1272,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.addEventListener('click', initAudio);
     document.addEventListener('keydown', initAudio);
+
+    // Stop background music when page is unloaded (user closes tab or navigates away)
+    window.addEventListener('beforeunload', () => {
+        stopBackgroundMusic();
+        if (audioContext && audioContext.state !== 'closed') {
+            audioContext.close().catch(console.error);
+        }
+    });
+
+    // Stop background music when tab becomes hidden (user switches tabs or minimizes)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            stopBackgroundMusic();
+        }
+    });
 
     // Start entrance animation
     setTimeout(() => {
