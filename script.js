@@ -219,6 +219,7 @@ let levelSize = 3; // Default sedang (3x2 = 3 pairs)
 let levelName = 'medium'; // Default level name
 let maxMoves = 0; // Batas maksimal langkah berdasarkan level
 let timeLimit = 0; // Batas waktu berdasarkan level
+let hellMismatches = 0; // Track consecutive mismatches in hell mode
 
 // Element references
 const gameBoard = document.getElementById('gameBoard');
@@ -500,19 +501,31 @@ function shuffleArray(array) {
 
 // Shuffle board animation
 function shuffleBoard() {
-    // Pause the timer during shuffle
-    clearInterval(timerInterval);
+    // Pause the timer during shuffle, except in hell mode
+    if (levelName !== 'hell') {
+        clearInterval(timerInterval);
+    }
 
     const cards = Array.from(gameBoard.children);
     const centerX = gameBoard.offsetWidth / 2;
     const centerY = gameBoard.offsetHeight / 2;
 
-    // Step 1: Flip all cards back
-    cards.forEach(card => {
-        card.classList.remove('matched', 'flipped');
-        const img = card.querySelector('img');
-        img.style.display = 'none';
-    });
+    // Step 1: Flip all cards back, but in hell mode, keep matched pairs
+    if (levelName === 'hell') {
+        cards.forEach(card => {
+            if (!card.classList.contains('matched')) {
+                card.classList.remove('flipped');
+                const img = card.querySelector('img');
+                img.style.display = 'none';
+            }
+        });
+    } else {
+        cards.forEach(card => {
+            card.classList.remove('matched', 'flipped');
+            const img = card.querySelector('img');
+            img.style.display = 'none';
+        });
+    }
 
     // Step 2: Collect cards to center
     cards.forEach((card, index) => {
@@ -550,6 +563,18 @@ function shuffleBoard() {
                     img.style.objectFit = '';
                 }
             });
+        } else if (levelName === 'hell') {
+            // For hell mode, shuffle only unmatched cards' images, keep matched unchanged
+            const unmatchedCards = cards.filter(card => !card.classList.contains('matched'));
+            const unmatchedImages = unmatchedCards.map(card => card.dataset.animal);
+            shuffleArray(unmatchedImages);
+            unmatchedCards.forEach((card, index) => {
+                card.dataset.animal = unmatchedImages[index];
+                const img = card.querySelector('img');
+                img.src = unmatchedImages[index];
+                img.alt = unmatchedImages[index].replace('.jpeg', '');
+            });
+            // Matched cards keep their images unchanged
         } else {
             // For other levels, just shuffle positions
             const cardData = cards.map(card => card.dataset.animal);
@@ -571,26 +596,32 @@ function shuffleBoard() {
 
         // Reset matched pairs, moves, and timer for next round, then resume timer
         setTimeout(() => {
-            matchedPairs = 0;
+            if (levelName !== 'hell') {
+                matchedPairs = 0;
+            }
             moves = 0;
-            timer = 0;
+            if (levelName !== 'hell') {
+                timer = 0;
+            }
             updateDisplay();
-            // Resume the timer after shuffle completes
-            timerInterval = setInterval(() => {
-                timer++;
-                timerEl.textContent = `${formatTime(timer)} / ${formatTime(timeLimit)}`;
-                if (timer >= timeLimit && !gameOver) {
-                    gameOver = true;
-                    playSound('gameOver'); // Play game over sound
-                    showCustomNotification('Game Over', 'Waktu habis!\n COBALAH LAGI');
-                    clearInterval(timerInterval);
-                    setTimeout(() => {
-                        resetGame();
-                        showStartScreen();
-                    }, 3000); // Delay to show notification before returning to start screen
-                }
-                updateDisplay(); // Update skor real-time dengan timer
-            }, 1000);
+            // Resume the timer after shuffle completes (only for non-hell modes)
+            if (levelName !== 'hell') {
+                timerInterval = setInterval(() => {
+                    timer++;
+                    timerEl.textContent = `${formatTime(timer)} / ${formatTime(timeLimit)}`;
+                    if (timer >= timeLimit && !gameOver) {
+                        gameOver = true;
+                        playSound('gameOver'); // Play game over sound
+                        showCustomNotification('Game Over', 'Waktu habis!\n COBALAH LAGI');
+                        clearInterval(timerInterval);
+                        setTimeout(() => {
+                            resetGame();
+                            showStartScreen();
+                        }, 3000); // Delay to show notification before returning to start screen
+                    }
+                    updateDisplay(); // Update skor real-time dengan timer
+                }, 1000);
+            }
         }, cards.length * 50 + 500);
     }, cards.length * 50 + 1000);
 }
