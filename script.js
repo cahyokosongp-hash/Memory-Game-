@@ -310,6 +310,7 @@ function startGame() {
     else if (levelSize === 4) timeLimit = 120; // Hard: 2 minutes
 
     updateDisplay();
+    updateItemButtons(); // Update item buttons when game starts
     clearInterval(timerInterval);
     timerInterval = setInterval(() => {
         timer++;
@@ -421,7 +422,8 @@ function checkMatch() {
         card2.classList.add('matched');
         matchedPairs++; // Tambah matched pairs
         // Tambah skor berdasarkan level
-        if (levelSize === 2) score += 25; // Easy: 25 poin per match
+        if (levelName === 'hell') score += 500; // Hell: 500 poin per match
+        else if (levelSize === 2) score += 25; // Easy: 25 poin per match
         else if (levelSize === 3) score += 50; // Medium: 50 poin per match
         else if (levelSize === 4) score += 150; // Hard: 150 poin per match
         // Update best score if current score is higher
@@ -643,6 +645,7 @@ function showGameScreen() {
     shopScreen.style.display = 'none';
     skinsScreen.style.display = 'none';
     leaderboardScreen.style.display = 'none';
+    updateItemButtons(); // Update item buttons when showing game screen
 }
 
 function showShopScreen() {
@@ -690,8 +693,7 @@ mulaiBtn.addEventListener('click', () => {
     else if (selectedLevel === 'hard') levelSize = 4;
     else if (selectedLevel === 'hell') levelSize = 4;
     // Skip start screen and go directly to game screen
-    startScreen.style.display = 'none';
-    gameScreen.style.display = 'block';
+    showGameScreen();
     startGame(); // Auto start game when entering game screen
 });
 shopBtn.addEventListener('click', () => {
@@ -1113,35 +1115,155 @@ function updateSkinsCoins() {
     }
 }
 
-
-
 // Fungsi beli skin
 function buySkin(skinId) {
     const skin = skins.find(s => s.id === skinId);
     if (!skin) return;
 
     if (ownedSkins.includes(skinId)) {
-        // If already owned, set as active
+        // If already owned, activate the skin
         activeSkin = skinId;
         localStorage.setItem('activeSkin', activeSkin);
-        showCustomNotification(`${skin.name} Skin Diaktifkan!`, 'Kartu telah berhasil diaktifkan.');
-        renderSkins();
-        renderShop(); // Update shop display
+        updateDisplay();
+        updateShopCoins();
+        updateSkinsCoins();
+        showCustomNotification(`${skin.name} Diaktifkan!`, 'Skin telah berhasil diaktifkan.');
+        renderSkins(); // Update skins display after activation
+        renderShop(); // Update shop display after activation
     } else if (totalCoins >= skin.cost) {
         totalCoins -= skin.cost;
         localStorage.setItem('totalCoins', totalCoins);
         ownedSkins.push(skinId);
         localStorage.setItem('ownedSkins', JSON.stringify(ownedSkins));
+        // Auto activate after purchase
         activeSkin = skinId;
         localStorage.setItem('activeSkin', activeSkin);
         updateDisplay();
+        updateShopCoins();
         updateSkinsCoins();
-        showCustomNotification(`${skin.name} Skin Dibeli!`, 'Kartu telah berhasil dibeli dan diaktifkan.');
-        renderSkins();
+        showCustomNotification(`${skin.name} Dibeli!`, 'Skin telah berhasil dibeli dan diaktifkan.');
+        renderSkins(); // Update skins display after purchase
         renderShop(); // Update shop display after purchase
     } else {
         showCustomNotification('Koin Tidak Cukup', 'Anda tidak memiliki cukup koin untuk membeli skin ini!');
     }
+}
+
+// Fungsi beli item
+function buyItem(itemId) {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    if (totalCoins >= item.cost) {
+        totalCoins -= item.cost;
+        localStorage.setItem('totalCoins', totalCoins);
+        ownedItems[itemId] = (ownedItems[itemId] || 0) + 1;
+        localStorage.setItem('ownedItems', JSON.stringify(ownedItems));
+        updateDisplay();
+        updateShopCoins();
+        updateSkinsCoins();
+        showCustomNotification(`${item.name} Dibeli!`, `Item telah berhasil dibeli. Sekarang Anda memiliki ${ownedItems[itemId]} ${item.name}.`);
+        renderShop(); // Update shop display after purchase
+    } else {
+        showCustomNotification('Koin Tidak Cukup', 'Anda tidak memiliki cukup koin untuk membeli item ini!');
+    }
+}
+
+// Fungsi update item buttons di game screen
+function updateItemButtons() {
+    const hintBtn = document.getElementById('hintBtn');
+    const freezeBtn = document.getElementById('freezeBtn');
+
+    const hintCount = ownedItems['hint'] || 0;
+    const freezeCount = ownedItems['freeze'] || 0;
+
+    hintBtn.textContent = `💡 Petunjuk (${hintCount})`;
+    freezeBtn.textContent = `❄️ Bekukan (${freezeCount})`;
+
+    hintBtn.disabled = hintCount <= 0 || !gameStarted || gameOver;
+    freezeBtn.disabled = freezeCount <= 0 || !gameStarted || gameOver;
+}
+
+// Add event listeners for item buttons
+document.addEventListener('DOMContentLoaded', () => {
+    const hintBtn = document.getElementById('hintBtn');
+    const freezeBtn = document.getElementById('freezeBtn');
+
+    if (hintBtn) {
+        hintBtn.addEventListener('click', () => {
+            console.log('Hint button clicked');
+            playSound('click');
+            useItem('hint');
+        });
+    }
+
+    if (freezeBtn) {
+        freezeBtn.addEventListener('click', () => {
+            console.log('Freeze button clicked');
+            playSound('click');
+            useItem('freeze');
+        });
+    }
+});
+
+// Fungsi gunakan item
+function useItem(itemId) {
+    if ((ownedItems[itemId] || 0) <= 0 || !gameStarted || gameOver) return;
+
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    if (itemId === 'hint') {
+        // Reveal all cards for 3 seconds
+        const cards = Array.from(gameBoard.children);
+        cards.forEach(card => {
+            if (!card.classList.contains('matched')) {
+                const img = card.querySelector('img');
+                img.style.display = 'block';
+                card.classList.add('revealed');
+            }
+        });
+        setTimeout(() => {
+            cards.forEach(card => {
+                if (card.classList.contains('revealed') && !card.classList.contains('matched')) {
+                    const img = card.querySelector('img');
+                    img.style.display = 'none';
+                    card.classList.remove('revealed');
+                }
+            });
+        }, 1500);
+        ownedItems[itemId]--;
+        localStorage.setItem('ownedItems', JSON.stringify(ownedItems));
+        const remaining = ownedItems[itemId];
+    } else if (itemId === 'freeze') {
+        // Freeze timer for 10 seconds
+        clearInterval(timerInterval);
+        ownedItems[itemId]--;
+        localStorage.setItem('ownedItems', JSON.stringify(ownedItems));
+        const remaining = ownedItems[itemId];
+        setTimeout(() => {
+            if (gameStarted && !gameOver) {
+                timerInterval = setInterval(() => {
+                    timer++;
+                    timerEl.textContent = `${formatTime(timer)} / ${formatTime(timeLimit)}`;
+                    if (timer >= timeLimit && !gameOver) {
+                        gameOver = true;
+                        playSound('gameOver');
+                        showCustomNotification('Game Over', 'Waktu habis!\n COBALAH LAGI');
+                        clearInterval(timerInterval);
+                        setTimeout(() => {
+                            resetGame();
+                            showStartScreen();
+                        }, 3000);
+                    }
+                    updateDisplay();
+                }, 1000);
+            }
+        }, 10000);
+    }
+
+    updateItemButtons();
+    renderShop();
 }
 
 // Fungsi show custom notification
@@ -1198,6 +1320,27 @@ function renderSkins() {
     });
 }
 
+// Items data
+const items = [
+    {
+        id: 'hint',
+        name: 'Petunjuk',
+        description: 'Ungkap kartu selama 1,5 detik',
+        cost: 50,
+        image: 'petunjuk.jpeg'
+    },
+    {
+        id: 'freeze',
+        name: 'Bekukan Waktu',
+        description: 'Jeda timer selama 3 detik',
+        cost: 100,
+        image: 'beku.jpeg'
+    }
+];
+
+// Load items from localStorage
+let ownedItems = JSON.parse(localStorage.getItem('ownedItems')) || { hint: 0, freeze: 0 };
+
 // Fungsi render shop
 function renderShop() {
     const shopItemsEl = document.getElementById('shopItems');
@@ -1205,23 +1348,48 @@ function renderShop() {
 
     shopItemsEl.innerHTML = '';
 
-    skins.forEach(skin => {
-        if (skin.cost > 0) { // Only show skins that cost coins
+    // Get current active tab
+    const activeTab = document.querySelector('.shop-tabs .tab-btn.active');
+    const tabType = activeTab ? activeTab.dataset.tab : 'skins';
+
+    if (tabType === 'skins') {
+        skins.forEach(skin => {
+            if (skin.cost > 0) { // Only show skins that cost coins
+                const shopItem = document.createElement('div');
+                shopItem.classList.add('shop-item');
+
+                shopItem.innerHTML = `
+                    <img src="${skin.images[0]}" alt="${skin.name}" class="skin-preview">
+                    <h3>${skin.name} Skin Pack</h3>
+                    <p>${skin.cost} coins</p>
+                    <button class="btn" onclick="buySkin('${skin.id}')">
+                        ${ownedSkins.includes(skin.id) ? 'Owned' : 'Buy'}
+                    </button>
+                `;
+
+                shopItemsEl.appendChild(shopItem);
+            }
+        });
+    } else if (tabType === 'items') {
+        items.forEach(item => {
             const shopItem = document.createElement('div');
             shopItem.classList.add('shop-item');
 
+            const quantity = ownedItems[item.id] || 0;
+
             shopItem.innerHTML = `
-                <img src="${skin.images[0]}" alt="${skin.name}" class="skin-preview">
-                <h3>${skin.name} Skin Pack</h3>
-                <p>${skin.cost} coins</p>
-                <button class="btn" onclick="buySkin('${skin.id}')">
-                    ${ownedSkins.includes(skin.id) ? 'Owned' : 'Buy'}
+                <img src="${item.image}" alt="${item.name}" class="item-preview">
+                <h3>${item.name}${quantity > 0 ? ` x${quantity}` : ''}</h3>
+                <p>${item.description}</p>
+                <p>${item.cost} coins</p>
+                <button class="btn" onclick="buyItem('${item.id}')">
+                    ${quantity > 0 ? `Owned x${quantity}` : 'Buy'}
                 </button>
             `;
 
             shopItemsEl.appendChild(shopItem);
-        }
-    });
+        });
+    }
 }
 
 // Fungsi efek percikan saat flip kartu
@@ -1289,6 +1457,20 @@ function createSparkles(card) {
 document.addEventListener('DOMContentLoaded', () => {
     renderSkins();
     renderShop();
+
+    // Add event listeners for shop tabs
+    const shopTabButtons = document.querySelectorAll('.shop-tabs .tab-btn');
+    shopTabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            playSound('click');
+            // Remove active class from all buttons
+            shopTabButtons.forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked button
+            button.classList.add('active');
+            // Re-render shop
+            renderShop();
+        });
+    });
 
     // Initialize audio context on first user interaction
     const initAudio = async () => {
