@@ -56,7 +56,7 @@
     <div class="game-screen" id="gameScreen">
         <div class="header">
             <img src="FAJRI/keseimbangan.jpeg" alt="Keseimbangan" class="header-image">
-            <h1>🗿 Memory Card Game - FAJRI🗿</h1>
+            <h1>🗿 Memory Card Game 🗿</h1>
             <img src="FAJRI/keseimbangan.jpeg" alt="Fajri" class="header-image">
         </div>
 
@@ -84,6 +84,11 @@
                 <div class="stat">Best Skor: <span id="bestScore">0</span></div>
             </div>
 
+            <div class="item-buttons">
+                <button class="btn item-btn" id="hintBtn" disabled>💡 Petunjuk (50)</button>
+                <button class="btn item-btn" id="freezeBtn" disabled>❄️ Bekukan (100)</button>
+            </div>
+
             <button class="btn back-btn" id="backBtn">Kembali</button>
         </div>
 
@@ -91,7 +96,7 @@
 
 
 
-        <p class="footer">DIBUAT OLEH CAHYO DENGAN SEPENUH HATI❤️❤️🌹🌹</p>
+        <p class="footer">TERIMAKASIH SUDAH MAIN❤️❤️🌹🌹</p>
     </div>
 
     <div class="skins-screen">
@@ -104,6 +109,10 @@
     <div class="shop-screen">
         <h1>Shop</h1>
         <div class="total-coins-display"><img src="coin.png" alt="coin" class="coin-icon"> <span id="shopCoins">0</span></div>
+        <div class="shop-tabs">
+            <button class="tab-btn active" data-tab="skins">Skins</button>
+            <button class="tab-btn" data-tab="items">Items</button>
+        </div>
         <div class="shop-items" id="shopItems"></div>
         <button class="btn back-btn">Kembali</button>
     </div>
