@@ -672,9 +672,10 @@ h1 {
   display: flex;
   flex-direction: row;
   gap: 20px;
-  justify-content: center;
-  flex-wrap: wrap;
+  justify-content: flex-start;
+  overflow-x: auto;
   margin-bottom: 20px;
+  padding-bottom: 10px;
 }
 
 .shop-item {
@@ -1040,10 +1041,13 @@ h1 {
 }
 
 .skins-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  display: flex;
+  flex-direction: row;
   gap: 12px;
+  justify-content: flex-start;
+  overflow-x: auto;
   margin-bottom: 20px;
+  padding-bottom: 10px;
 }
 
 .skin-item {
@@ -1198,8 +1202,13 @@ h1 {
   }
 
   .skins-grid {
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    display: flex;
+    flex-direction: row;
     gap: 10px;
+    justify-content: flex-start;
+    overflow-x: auto;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
   }
 
   .skin-preview {
