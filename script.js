@@ -1,1517 +1,1392 @@
-// Data kartu foto (duplikat untuk pair)
-const animals = ['FAJRI/berangkat.jpeg', 'FAJRI/diam.jpeg', 'FAJRI/keseimbangan.jpeg', 'FAJRI/nanya.jpeg', 'FAJRI/setuju.jpeg', 'FAJRI/tawa.jpeg', 'FAJRI/blangkon.jpeg', 'FAJRI/cool.jpeg', 'FAJRI/dagu.jpeg']; // Tambah jika perlu untuk level sulit
-
-// Skins data
-const skins = [
-    {
-        id: 'fajri',
-        name: 'FAJRI',
-        images: ['FAJRI/berangkat.jpeg', 'FAJRI/diam.jpeg', 'FAJRI/keseimbangan.jpeg', 'FAJRI/nanya.jpeg', 'FAJRI/setuju.jpeg', 'FAJRI/tawa.jpeg', 'FAJRI/blangkon.jpeg', 'FAJRI/cool.jpeg', 'FAJRI/dagu.jpeg'],
-        cost: 0
-    },
-    {
-        id: 'joker',
-        name: 'JOKER',
-        images: ['JOKER/1.jpeg', 'JOKER/2.jpeg', 'JOKER/3.jpeg', 'JOKER/4.jpeg', 'JOKER/5.jpeg', 'JOKER/6.jpeg', 'JOKER/7.jpeg', 'JOKER/8.jpeg'],
-        cost: 100
-    },
-    {
-        id: 'sri_ira',
-        name: 'SRI IRA',
-        images: ['SRI IRA/ira3.jpeg', 'SRI IRA/ira2.jpeg', 'SRI IRA/ira1.jpeg', 'SRI IRA/ira4.jpeg', 'SRI IRA/sri1.jpeg', 'SRI IRA/sri2.jpeg', 'SRI IRA/sri3.jpeg', 'SRI IRA/sri4.jpeg'],
-        cost: 200
-    }
-];
-
-// Load skins from localStorage
-let ownedSkins = JSON.parse(localStorage.getItem('ownedSkins')) || ['fajri'];
-let activeSkin = localStorage.getItem('activeSkin') || 'fajri';
-
-// Sound settings
-let soundEnabled = localStorage.getItem('soundEnabled') !== 'false'; // Default true
-let backgroundMusicSource = null; // For background music
-
-// Global audio context
-let audioContext;
-
-function getAudioContext() {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    return audioContext;
+r:root{
+  --bg:#fbf9f3;
+  --accent:#2f2f2f;
+  --btn-bg:#fff;
+  --btn-border:#2f2f2f;
+  --primary:#2f8cff;
 }
 
-// Sound function using Web Audio API to generate procedural sounds
-async function playSound(soundType) {
-    if (!soundEnabled) return;
-
-    const ctx = getAudioContext();
-    if (ctx.state === 'suspended') {
-        await ctx.resume();
-    }
-
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    switch (soundType) {
-        case 'flip':
-            // Short high-pitched beep for flip
-            oscillator.frequency.setValueAtTime(800, ctx.currentTime);
-            oscillator.type = 'sine';
-            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.1);
-            break;
-        case 'match':
-            // Pleasant ascending tone for match
-            oscillator.frequency.setValueAtTime(523, ctx.currentTime); // C5
-            oscillator.frequency.setValueAtTime(659, ctx.currentTime + 0.1); // E5
-            oscillator.frequency.setValueAtTime(784, ctx.currentTime + 0.2); // G5
-            oscillator.type = 'triangle';
-            gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.3);
-            break;
-        case 'gameOver':
-            // Low descending tone for game over
-            oscillator.frequency.setValueAtTime(220, ctx.currentTime); // A3
-            oscillator.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.5); // A2
-            oscillator.type = 'sawtooth';
-            gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.5);
-            break;
-        case 'shuffle':
-            // Series of quick notes for shuffle
-            const frequencies = [440, 554, 659, 880]; // A4, C#5, E5, A5
-            frequencies.forEach((freq, index) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.setValueAtTime(freq, ctx.currentTime + index * 0.1);
-                osc.type = 'sine';
-                gain.gain.setValueAtTime(0.1, ctx.currentTime + index * 0.1);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + index * 0.1 + 0.08);
-                osc.start(ctx.currentTime + index * 0.1);
-                osc.stop(ctx.currentTime + index * 0.1 + 0.08);
-            });
-            break;
-        case 'click':
-            // Short click sound
-            oscillator.frequency.setValueAtTime(1000, ctx.currentTime);
-            oscillator.type = 'square';
-            gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.05);
-            break;
-        case 'notification':
-            // Pleasant chime for notifications
-            oscillator.frequency.setValueAtTime(800, ctx.currentTime);
-            oscillator.frequency.setValueAtTime(1000, ctx.currentTime + 0.1);
-            oscillator.type = 'sine';
-            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.2);
-            break;
-        case 'countdown':
-            // Ticking sound for countdown
-            oscillator.frequency.setValueAtTime(600, ctx.currentTime);
-            oscillator.type = 'square';
-            gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-            oscillator.start(ctx.currentTime);
-            oscillator.stop(ctx.currentTime + 0.1);
-            break;
-        default:
-            return;
-    }
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background: #000;
+  background-attachment: fixed;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  color:white;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position: relative;
+  overflow: hidden;
 }
 
-// Background music function
-async function playBackgroundMusic() {
-    if (!soundEnabled || backgroundMusicSource) return; // Don't play if disabled or already playing
-
-    const ctx = getAudioContext();
-    if (ctx.state === 'suspended') {
-        await ctx.resume();
-    }
-
-    // Create a simple looping melody
-    const melody = [
-        { freq: 523, duration: 0.5 }, // C5
-        { freq: 659, duration: 0.5 }, // E5
-        { freq: 784, duration: 0.5 }, // G5
-        { freq: 659, duration: 0.5 }, // E5
-        { freq: 523, duration: 0.5 }, // C5
-        { freq: 440, duration: 0.5 }, // A4
-        { freq: 523, duration: 1.0 }, // C5 (longer)
-        { freq: 0, duration: 0.5 },   // Rest
-        { freq: 587, duration: 0.5 }, // D5
-        { freq: 698, duration: 0.5 }, // F5
-        { freq: 784, duration: 0.5 }, // G5
-        { freq: 698, duration: 0.5 }, // F5
-        { freq: 587, duration: 0.5 }, // D5
-        { freq: 523, duration: 0.5 }, // C5
-        { freq: 587, duration: 1.0 }, // D5 (longer)
-    ];
-
-    let currentTime = ctx.currentTime;
-    const loopLength = melody.reduce((sum, note) => sum + note.duration, 0);
-
-    function playMelody() {
-        let timeOffset = 0;
-        melody.forEach(note => {
-            if (note.freq > 0) {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-
-                osc.frequency.setValueAtTime(note.freq, currentTime + timeOffset);
-                osc.type = 'sine';
-
-                gain.gain.setValueAtTime(0.1, currentTime + timeOffset);
-                gain.gain.exponentialRampToValueAtTime(0.01, currentTime + timeOffset + note.duration * 0.8);
-
-                osc.start(currentTime + timeOffset);
-                osc.stop(currentTime + timeOffset + note.duration);
-            }
-            timeOffset += note.duration;
-        });
-
-        // Schedule next loop
-        currentTime += loopLength;
-        if (backgroundMusicSource) { // Check if still playing
-            setTimeout(playMelody, loopLength * 1000);
-        }
-    }
-
-    backgroundMusicSource = {}; // Mark as playing
-    playMelody();
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 20% 80%, rgba(187, 134, 252, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
 }
 
-function stopBackgroundMusic() {
-    backgroundMusicSource = null; // Stop the loop
+/* Solar System Background */
+.solar-system {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -2;
 }
 
-let board = [];
-let flippedCards = [];
-let matchedPairs = 0;
-let moves = 0;
-let timer = 0;
-let score = 0; // Skor awal 0, bertambah berdasarkan performa
-let bestScore = parseInt(localStorage.getItem('bestScore')) || 0; // Best score dari localStorage
-let totalCoins = 0; // Total koin yang diperoleh
-let timerInterval;
-let gameStarted = false;
-let gameOver = false;
-let levelSize = 3; // Default sedang (3x2 = 3 pairs)
-let levelName = 'medium'; // Default level name
-let maxMoves = 0; // Batas maksimal langkah berdasarkan level
-let timeLimit = 0; // Batas waktu berdasarkan level
-let hellMismatches = 0; // Track consecutive mismatches in hell mode
-
-// Element references
-const gameBoard = document.getElementById('gameBoard');
-const levelSelect = document.getElementById('level');
-const playerNameEl = document.getElementById('playerName');
-const timerEl = document.getElementById('timer');
-const movesEl = document.getElementById('moves');
-const coinsEl = document.getElementById('coins');
-const scoreEl = document.getElementById('score');
-const bestScoreEl = document.getElementById('bestScore');
-const backBtn = document.getElementById('backBtn');
-const shopBtn = document.getElementById('shopBtn');
-
-// Screen management
-const startScreen = document.querySelector('.start-screen');
-const mulaiBtn = document.getElementById('mulaiBtn');
-const startPlayerNameEl = document.getElementById('startPlayerName');
-const startLevelEl = document.getElementById('startLevel');
-const gameScreen = document.getElementById('gameScreen');
-const shopScreen = document.querySelector('.shop-screen');
-const skinsScreen = document.querySelector('.skins-screen');
-const leaderboardScreen = document.querySelector('.leaderboard-screen');
-const skinsBtn = document.getElementById('skinsBtn');
-const leaderboardBtn = document.getElementById('leaderboardBtn');
-
-levelSelect.addEventListener('change', (e) => {
-    playSound('click');
-    if (gameStarted) return; // Jangan ganti level saat main
-    if (e.target.value === 'easy') {
-        levelSize = 2;
-        levelName = 'easy';
-        showCustomNotification('Level Mudah Dipilih', 'hah yakin nih 2x2?? ezz bgtt');
-    } else if (e.target.value === 'medium') {
-        levelSize = 3;
-        levelName = 'medium';
-        showCustomNotification('Level Sedang Dipilih', 'halah nanggung banget mending sulit');
-    } else if (e.target.value === 'hard') {
-        levelSize = 4;
-        levelName = 'hard';
-        showCustomNotification('Level Sulit Dipilih', 'nah gitu dong baru mantap');
-    } else if (e.target.value === 'hell') {
-        levelSize = 4;
-        levelName = 'hell';
-        showCustomNotification('Level Neraka Dipilih', 'Siap-siap menderita! Kartu akan kocok otomatis jika salah.');
-    }
-});
-
-startLevelEl.addEventListener('change', (e) => {
-    playSound('click');
-    if (e.target.value === 'easy') {
-        levelName = 'easy';
-        showCustomNotification('Level Mudah Dipilih', 'hah yakin nih 2x2?? ezz bgtt');
-    } else if (e.target.value === 'medium') {
-        levelName = 'medium';
-        showCustomNotification('Level Sedang Dipilih', 'halah nanggung banget mending sulit');
-    } else if (e.target.value === 'hard') {
-        levelName = 'hard';
-        showCustomNotification('Level Sulit Dipilih', 'nah gitu dong baru mantap');
-    } else if (e.target.value === 'hell') {
-        levelName = 'hell';
-        showCustomNotification('Level Neraka Dipilih', 'Siap-siap menderita! Kartu akan kocok otomatis jika salah.');
-    }
-});
-
-// Fungsi mulai game
-function startGame() {
-    if (gameStarted) return;
-    gameStarted = true;
-    gameOver = false;
-    moves = 0;
-    timer = 0;
-    matchedPairs = 0;
-    score = 0; // Reset skor ke 0
-    totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0; // Load total coins from localStorage
-    flippedCards = [];
-
-    // Set max moves berdasarkan level
-    if (levelSize === 2) maxMoves = 3; // Easy: 3 moves max
-    else if (levelSize === 3) maxMoves = 6; // Medium: 6 moves max
-    else if (levelSize === 4) maxMoves = 16; // Hard: 16 moves max
-
-    // Remove move limit for hell mode
-    if (levelName === 'hell') maxMoves = 10000;
-
-    // Set time limit berdasarkan level
-    if (levelSize === 2) timeLimit = 8; // Easy: 10 seconds
-    else if (levelSize === 3) timeLimit = 20; // Medium: 30 seconds
-    else if (levelSize === 4) timeLimit = 120; // Hard: 2 minutes
-
-    updateDisplay();
-    updateItemButtons(); // Update item buttons when game starts
-    clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-        timer++;
-        timerEl.textContent = `${formatTime(timer)} / ${formatTime(timeLimit)}`;
-
-        if (timer >= timeLimit && !gameOver) {
-            gameOver = true;
-            playSound('gameOver'); // Play game over sound
-            showCustomNotification('Game Over', 'Waktu habis!\n COBALAH LAGI');
-            clearInterval(timerInterval);
-            setTimeout(() => {
-                resetGame();
-                showStartScreen();
-            }, 3000); // Delay to show notification before returning to start screen
-        }
-        updateDisplay(); // Update skor real-time dengan timer
-    }, 1000);
-
-    initBoard();
+.sun {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, #ffdd44 0%, #ffaa00 50%, #ff6600 100%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 50px #ffaa00, 0 0 100px #ff6600;
 }
 
-// Fungsi reset
-function resetGame() {
-    gameStarted = false;
-    clearInterval(timerInterval);
-    timer = 0;
-    moves = 0;
-    matchedPairs = 0;
-    score = 0;
-    flippedCards = [];
-    timerEl.textContent = '00:00';
-    movesEl.textContent = '0';
-    scoreEl.textContent = '0';
-    gameBoard.innerHTML = '';
+.planet {
+  position: absolute;
+  border-radius: 50%;
+  transform-origin: center;
 }
 
-// Inisialisasi board
-function initBoard() {
-    board = [];
-    let rows, cols;
-    if (levelSize === 2) { rows = 2; cols = 2; }
-    else if (levelSize === 3) { rows = 2; cols = 3; }
-    else if (levelSize === 4) { rows = 4; cols = 4; }
-    const pairsNeeded = (rows * cols) / 2;
-    const activeSkinData = skins.find(skin => skin.id === activeSkin);
-    const selectedAnimals = activeSkinData.images.slice(0, pairsNeeded);
-    const cards = [...selectedAnimals, ...selectedAnimals]; // Duplikat untuk pair
-    shuffleArray(cards);
-
-    gameBoard.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    gameBoard.innerHTML = '';
-
-    cards.forEach((animal, index) => {
-        const card = document.createElement('div');
-        card.classList.add('card');
-        card.dataset.animal = animal;
-        card.dataset.index = index;
-        const img = document.createElement('img');
-        img.src = animal;
-        img.alt = animal.replace('.jpeg', '');
-        img.style.display = 'none'; // Sembunyikan gambar awalnya
-        // Perbesar gambar ira1 dan sri2
-        if (animal.includes('ira1.jpeg') || animal.includes('sri2.jpeg')) {
-            img.style.width = '105%';
-            img.style.height = '105%';
-            img.style.objectFit = 'cover';
-        }
-        card.appendChild(img);
-        card.addEventListener('click', flipCard);
-        gameBoard.appendChild(card);
-    });
+.planet.mercury {
+  width: 20px;
+  height: 20px;
+  background: #8c7853;
+  top: 50%;
+  left: 50%;
+  margin: -10px 0 0 -10px;
+  animation: orbit-mercury 10s linear infinite;
 }
 
-// Flip kartu
-function flipCard(e) {
-    if (flippedCards.length >= 2 || this.classList.contains('flipped') || this.classList.contains('matched') || !gameStarted || gameOver) return;
-
-    playSound('flip'); // Play flip sound
-    this.classList.add('flipped');
-    const img = this.querySelector('img');
-    img.style.display = 'block'; // Tampilkan gambar saat flip
-    createSparkles(this); // Tambah efek percikan saat flip
-    flippedCards.push(this);
-
-    if (flippedCards.length === 2) {
-        moves++;
-        if (moves > maxMoves && !gameOver) {
-            gameOver = true;
-            playSound('gameOver'); // Play game over sound
-            showCustomNotification('Game Over', 'Kamu telah mencapai batas langkah maksimal!\n COBALAH LAGI');
-            clearInterval(timerInterval);
-            setTimeout(() => {
-                resetGame();
-                showStartScreen();
-            }, 3000); // Delay to show notification before returning to start screen
-            return;
-        }
-        checkMatch();
-        updateDisplay();
-    }
+.planet.venus {
+  width: 28px;
+  height: 28px;
+  background: #ffc649;
+  top: 50%;
+  left: 50%;
+  margin: -14px 0 0 -14px;
+  animation: orbit-venus 15s linear infinite;
 }
 
-// Cek match
-function checkMatch() {
-    const [card1, card2] = flippedCards;
-    if (card1.dataset.animal === card2.dataset.animal) {
-        playSound('match'); // Play match sound
-        card1.classList.add('matched');
-        card2.classList.add('matched');
-        matchedPairs++; // Tambah matched pairs
-        // Tambah skor berdasarkan level
-        if (levelName === 'hell') score += 500; // Hell: 500 poin per match
-        else if (levelSize === 2) score += 25; // Easy: 25 poin per match
-        else if (levelSize === 3) score += 50; // Medium: 50 poin per match
-        else if (levelSize === 4) score += 150; // Hard: 150 poin per match
-        // Update best score if current score is higher
-        if (score > bestScore) {
-            bestScore = score;
-            localStorage.setItem('bestScore', bestScore);
-        }
-        totalCoins += 10; // Tambah koin per match
-        localStorage.setItem('totalCoins', totalCoins); // Save to localStorage
-        animateCoinInCard(card1); // Animasi koin dari kartu pertama
-        animateCoinInCard(card2); // Animasi koin dari kartu kedua
-        updateDisplay(); // Update skor setelah match
-        // Check if all pairs are matched
-        let totalPairs;
-        if (levelSize === 2) totalPairs = 2;
-        else if (levelSize === 3) totalPairs = 3;
-        else if (levelSize === 4) totalPairs = 8;
-        if (matchedPairs === totalPairs) {
-            // Update best score if current score is higher
-            if (score > bestScore) {
-                bestScore = score;
-                localStorage.setItem('bestScore', bestScore);
-                updateDisplay(); // Update display to show new best score
-            }
-            // Save score to leaderboard
-            const playerName = playerNameEl.value.trim() || 'Anonymous';
-            saveScoreToLeaderboard(playerName, score, levelName);
-            setTimeout(() => {
-                playSound('shuffle'); // Play shuffle sound
-                shuffleBoard();
-            }, 1000); // Delay before shuffle
-        }
-    } else {
-        setTimeout(() => {
-            card1.classList.remove('flipped');
-            card2.classList.remove('flipped');
-            const img1 = card1.querySelector('img');
-            const img2 = card2.querySelector('img');
-            img1.style.display = 'none';
-            img2.style.display = 'none';
+.planet.earth {
+  width: 32px;
+  height: 32px;
+  background: #6b93d6;
+  top: 50%;
+  left: 50%;
+  margin: -16px 0 0 -16px;
+  animation: orbit-earth 20s linear infinite;
+}
 
-            // For hell mode, shuffle on mismatch
-            if (levelName === 'hell') {
-                setTimeout(() => {
-                    shuffleBoard();
-                }, 500); // Small delay after hiding
-            }
-        }, 1000);
-    }
-    flippedCards = [];
+.planet.mars {
+  width: 24px;
+  height: 24px;
+  background: #c1440e;
+  top: 50%;
+  left: 50%;
+  margin: -12px 0 0 -12px;
+  animation: orbit-mars 25s linear infinite;
+}
+
+.planet.jupiter {
+  width: 60px;
+  height: 60px;
+  background: #d8ca9d;
+  top: 50%;
+  left: 50%;
+  margin: -30px 0 0 -30px;
+  animation: orbit-jupiter 40s linear infinite;
+}
+
+.planet.saturn {
+  width: 52px;
+  height: 52px;
+  background: #fab27b;
+  top: 50%;
+  left: 50%;
+  margin: -26px 0 0 -26px;
+  animation: orbit-saturn 60s linear infinite;
+}
+
+.planet.uranus {
+  width: 36px;
+  height: 36px;
+  background: #4fd0e7;
+  top: 50%;
+  left: 50%;
+  margin: -18px 0 0 -18px;
+  animation: orbit-uranus 80s linear infinite;
+}
+
+.planet.neptune {
+  width: 34px;
+  height: 34px;
+  background: #4b70dd;
+  top: 50%;
+  left: 50%;
+  margin: -17px 0 0 -17px;
+  animation: orbit-neptune 100s linear infinite;
+}
+
+@keyframes orbit-mercury {
+  from { transform: rotate(0deg) translateX(50px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(50px) rotate(-360deg); }
+}
+
+@keyframes orbit-venus {
+  from { transform: rotate(0deg) translateX(75px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(75px) rotate(-360deg); }
+}
+
+@keyframes orbit-earth {
+  from { transform: rotate(0deg) translateX(100px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(100px) rotate(-360deg); }
+}
+
+@keyframes orbit-mars {
+  from { transform: rotate(0deg) translateX(125px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(125px) rotate(-360deg); }
+}
+
+@keyframes orbit-jupiter {
+  from { transform: rotate(0deg) translateX(150px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(150px) rotate(-360deg); }
+}
+
+@keyframes orbit-saturn {
+  from { transform: rotate(0deg) translateX(175px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(175px) rotate(-360deg); }
+}
+
+@keyframes orbit-uranus {
+  from { transform: rotate(0deg) translateX(200px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(200px) rotate(-360deg); }
+}
+
+@keyframes orbit-neptune {
+  from { transform: rotate(0deg) translateX(225px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(225px) rotate(-360deg); }
+}
+
+/* Meteor Animation */
+.meteor {
+  position: absolute;
+  top: -200px;
+  right: -200px;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(45deg, #fff, #ffaa00, #ff6600);
+  border-radius: 50%;
+  box-shadow: 0 0 30px #ffaa00, 0 0 60px #ff6600, 0 0 100px #ff3300;
+  animation: meteorFallExplosion 3s ease-in-out forwards;
+  z-index: 10;
+}
+
+.meteor::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: inherit;
+  border-radius: inherit;
+  animation: meteorTrailExplosion 3s ease-in-out forwards;
+}
+
+@keyframes meteorFallExplosion {
+  0% {
+    top: -200px;
+    right: -200px;
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  60% {
+    top: 50%;
+    left: 50%;
+    transform: translateX(-50%) scale(4) rotate(360deg);
+    opacity: 0.9;
+  }
+  80% {
+    top: 50%;
+    left: 50%;
+    transform: translateX(-50%) scale(6) rotate(540deg);
+    opacity: 0.5;
+  }
+  100% {
+    top: 50%;
+    left: 50%;
+    transform: translateX(-50%) scale(8) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes meteorTrailExplosion {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(2);
+    opacity: 0.8;
+  }
+  80% {
+    transform: scale(4);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(8);
+    opacity: 0;
+  }
+}
+
+.start-screen{
+  width:100%;
+  max-width:420px;
+  padding:28px;
+  text-align:center;
+  background: linear-gradient(135deg, rgba(26, 13, 46, 0.9) 0%, rgba(47, 140, 255, 0.1) 100%);
+  backdrop-filter: blur(15px);
+  border-radius: 25px;
+  border: 2px solid rgba(187, 134, 252, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+
+.start-screen::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(187, 134, 252, 0.1) 0%, transparent 70%);
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+  50% { transform: translate(-50%, -50%) rotate(180deg); }
+}
+
+.logo-row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  margin-bottom:28px;
+}
+
+.side-logo{
+  width:56px;
+  height:56px;
+  object-fit:cover;
+  border-radius:8px;
+  box-shadow:0 6px 18px rgba(187, 134, 252, 0.3);
+  border: 2px solid #bb86fc;
+}
+
+.title{
+  margin:0;
+  font-size:28px;
+  letter-spacing:1px;
+  font-weight:700;
+  color:#bb86fc;
+  text-shadow: 0 0 10px rgba(187, 134, 252, 0.5);
+}
+
+.start-buttons{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  align-items:center;
+  margin:18px 0 26px;
+}
+
+.btn{
+  width:260px;
+  max-width:90%;
+  padding:14px 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 240, 240, 0.8) 100%);
+  border:3px solid var(--btn-border);
+  border-radius:12px;
+  font-size:18px;
+  font-weight:600;
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, background .3s ease;
+  box-shadow:0 6px 20px rgba(47,47,47,0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn:hover::before {
+  left: 100%;
+}
+
+.btn:active{transform:translateY(2px)}
+.btn:hover{box-shadow:0 10px 28px rgba(47,47,47,0.15)}
+
+.btn.primary{
+  background:linear-gradient(135deg, #bb86fc 0%, #9c4dcc 100%);
+  border-color:#bb86fc;
+  color:#1a0d2e;
+  box-shadow: 0 0 20px rgba(187, 134, 252, 0.3);
+}
+
+.credit{
+  margin-top:18px;
+  font-size:12px;
+  color:#7a7a7a;
+}
+
+/* Game Screen */
+.game-screen {
+  display: none;
+  width: 100%;
+  max-width: 700px;
+  padding: 20px;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(26, 13, 46, 0.95) 0%, rgba(47, 140, 255, 0.1) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 25px;
+  border: 2px solid rgba(187, 134, 252, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.game-screen::before {
+  content: '';
+  position: absolute;
+  left: -200px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  background: white;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.8),
+    50px 50px 0 1px rgba(255, 255, 255, 0.6),
+    100px -50px 0 1px rgba(255, 255, 255, 0.7),
+    -50px 100px 0 1px rgba(255, 255, 255, 0.5),
+    150px 0 0 1px rgba(255, 255, 255, 0.9),
+    0 150px 0 1px rgba(255, 255, 255, 0.4),
+    200px 100px 0 1px rgba(255, 255, 255, 0.6),
+    250px -100px 0 1px rgba(255, 255, 255, 0.5),
+    300px 50px 0 1px rgba(255, 255, 255, 0.7),
+    350px 150px 0 1px rgba(255, 255, 255, 0.8);
+  opacity: 0.5;
+  z-index: -1;
+}
+
+.game-screen::after {
+  content: '';
+  position: absolute;
+  right: -200px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  background: white;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.8),
+    50px 50px 0 1px rgba(255, 255, 255, 0.6),
+    100px -50px 0 1px rgba(255, 255, 255, 0.7),
+    -50px 100px 0 1px rgba(255, 255, 255, 0.5),
+    150px 0 0 1px rgba(255, 255, 255, 0.9),
+    0 150px 0 1px rgba(255, 255, 255, 0.4),
+    200px 100px 0 1px rgba(255, 255, 255, 0.6),
+    250px -100px 0 1px rgba(255, 255, 255, 0.5),
+    300px 50px 0 1px rgba(255, 255, 255, 0.7),
+    350px 150px 0 1px rgba(255, 255, 255, 0.8);
+  opacity: 0.5;
+  z-index: -1;
 }
 
 
 
-// Update display
-function updateDisplay() {
-    movesEl.textContent = `${moves}/${maxMoves}`;
-    coinsEl.textContent = totalCoins;
-    scoreEl.textContent = score;
-    bestScoreEl.textContent = bestScore;
+.game-screen.show {
+  display: block;
 }
 
-// Format waktu
-function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const secs = (seconds % 60).toString().padStart(2, '0');
-    return `${mins}:${secs}`;
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
-// Shuffle array (Fisher-Yates)
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
+.header-image {
+  max-width: 50px;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-// Shuffle board animation
-function shuffleBoard() {
-    // Pause the timer during shuffle, except in hell mode
-    if (levelName !== 'hell') {
-        clearInterval(timerInterval);
-    }
-
-    const cards = Array.from(gameBoard.children);
-    const centerX = gameBoard.offsetWidth / 2;
-    const centerY = gameBoard.offsetHeight / 2;
-
-    // Step 1: Flip all cards back, but in hell mode, keep matched pairs
-    if (levelName === 'hell') {
-        cards.forEach(card => {
-            if (!card.classList.contains('matched')) {
-                card.classList.remove('flipped');
-                const img = card.querySelector('img');
-                img.style.display = 'none';
-            }
-        });
-    } else {
-        cards.forEach(card => {
-            card.classList.remove('matched', 'flipped');
-            const img = card.querySelector('img');
-            img.style.display = 'none';
-        });
-    }
-
-    // Step 2: Collect cards to center
-    cards.forEach((card, index) => {
-        setTimeout(() => {
-            card.style.transform = `translate(${centerX - card.offsetLeft - card.offsetWidth / 2}px, ${centerY - card.offsetTop - card.offsetHeight / 2}px) scale(0.5)`;
-        }, index * 50);
-    });
-
-    // Step 3: After collecting, shuffle and spread back
-    setTimeout(() => {
-        const pairsNeeded = cards.length / 2;
-        const activeSkinData = skins.find(skin => skin.id === activeSkin);
-
-        if (levelSize === 2 || levelSize === 3) {
-            // For 2x2 and 3x3, select new random images from skin
-            const shuffledImages = [...activeSkinData.images];
-            shuffleArray(shuffledImages);
-            const selectedAnimals = shuffledImages.slice(0, pairsNeeded);
-            const cardData = [...selectedAnimals, ...selectedAnimals]; // Duplikat untuk pair
-            shuffleArray(cardData); // Shuffle posisi
-
-            cards.forEach((card, index) => {
-                card.dataset.animal = cardData[index];
-                const img = card.querySelector('img');
-                img.src = cardData[index];
-                img.alt = cardData[index].replace('.jpeg', '');
-                // Apply special styling for ira1 and sri2
-                if (cardData[index].includes('ira1.jpeg') || cardData[index].includes('sri2.jpeg')) {
-                    img.style.width = '120%';
-                    img.style.height = '120%';
-                    img.style.objectFit = 'cover';
-                } else {
-                    img.style.width = '';
-                    img.style.height = '';
-                    img.style.objectFit = '';
-                }
-            });
-        } else if (levelName === 'hell') {
-            // For hell mode, shuffle only unmatched cards' images, keep matched unchanged
-            const unmatchedCards = cards.filter(card => !card.classList.contains('matched'));
-            const unmatchedImages = unmatchedCards.map(card => card.dataset.animal);
-            shuffleArray(unmatchedImages);
-            unmatchedCards.forEach((card, index) => {
-                card.dataset.animal = unmatchedImages[index];
-                const img = card.querySelector('img');
-                img.src = unmatchedImages[index];
-                img.alt = unmatchedImages[index].replace('.jpeg', '');
-            });
-            // Matched cards keep their images unchanged
-        } else {
-            // For other levels, just shuffle positions
-            const cardData = cards.map(card => card.dataset.animal);
-            shuffleArray(cardData);
-            cards.forEach((card, index) => {
-                card.dataset.animal = cardData[index];
-                const img = card.querySelector('img');
-                img.src = cardData[index];
-                img.alt = cardData[index].replace('.jpeg', '');
-            });
-        }
-
-        // Spread cards back to grid positions
-        cards.forEach((card, index) => {
-            setTimeout(() => {
-                card.style.transform = 'translate(0, 0) scale(1)';
-            }, index * 50);
-        });
-
-        // Reset matched pairs, moves, and timer for next round, then resume timer
-        setTimeout(() => {
-            if (levelName !== 'hell') {
-                matchedPairs = 0;
-            }
-            moves = 0;
-            if (levelName !== 'hell') {
-                timer = 0;
-            }
-            updateDisplay();
-            // Resume the timer after shuffle completes (only for non-hell modes)
-            if (levelName !== 'hell') {
-                timerInterval = setInterval(() => {
-                    timer++;
-                    timerEl.textContent = `${formatTime(timer)} / ${formatTime(timeLimit)}`;
-                    if (timer >= timeLimit && !gameOver) {
-                        gameOver = true;
-                        playSound('gameOver'); // Play game over sound
-                        showCustomNotification('Game Over', 'Waktu habis!\n COBALAH LAGI');
-                        clearInterval(timerInterval);
-                        setTimeout(() => {
-                            resetGame();
-                            showStartScreen();
-                        }, 3000); // Delay to show notification before returning to start screen
-                    }
-                    updateDisplay(); // Update skor real-time dengan timer
-                }, 1000);
-            }
-        }, cards.length * 50 + 500);
-    }, cards.length * 50 + 1000);
+h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
 }
 
-
-
-// Screen navigation functions
-function showStartScreen() {
-    startScreen.style.display = 'block';
-    gameScreen.style.display = 'none';
-    shopScreen.style.display = 'none';
-    skinsScreen.style.display = 'none';
-    leaderboardScreen.style.display = 'none';
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
-function showGameScreen() {
-    startScreen.style.display = 'none';
-    gameScreen.style.display = 'block';
-    shopScreen.style.display = 'none';
-    skinsScreen.style.display = 'none';
-    leaderboardScreen.style.display = 'none';
-    updateItemButtons(); // Update item buttons when showing game screen
+.level-select {
+  margin-right: 10px;
 }
 
-function showShopScreen() {
-    startScreen.style.display = 'none';
-    gameScreen.style.display = 'none';
-    shopScreen.style.display = 'block';
-    skinsScreen.style.display = 'none';
-    leaderboardScreen.style.display = 'none';
+.level-select label {
+  margin-right: 5px;
+  font-weight: 600;
 }
 
-function showSkinsScreen() {
-    startScreen.style.display = 'none';
-    gameScreen.style.display = 'none';
-    shopScreen.style.display = 'none';
-    skinsScreen.style.display = 'block';
-    leaderboardScreen.style.display = 'none';
+.level-select select {
+  background: var(--btn-bg);
+  color: var(--accent);
+  border: 1px solid var(--btn-border);
+  padding: 5px;
+  border-radius: 5px;
 }
 
-function showLeaderboardScreen() {
-    startScreen.style.display = 'none';
-    gameScreen.style.display = 'none';
-    shopScreen.style.display = 'none';
-    skinsScreen.style.display = 'none';
-    leaderboardScreen.style.display = 'block';
+.player-input {
+  margin-right: 10px;
 }
 
-// Event listeners for navigation
-mulaiBtn.addEventListener('click', () => {
-    playSound('click');
-    const playerName = startPlayerNameEl.value.trim();
-    const selectedLevel = startLevelEl.value;
-    if (!selectedLevel) {
-        showCustomNotification('Kesulitan Diperlukan', 'Pilih tingkat kesulitan terlebih dahulu!');
-        return;
-    }
-    if (!playerName) {
-        showCustomNotification('Nama Diperlukan', 'Masukkan nama pemain terlebih dahulu!');
-        return;
-    }
-    playerNameEl.value = playerName; // Copy name to game screen
-    // Set level based on start screen selection
-    levelSelect.value = selectedLevel;
-    if (selectedLevel === 'easy') levelSize = 2;
-    else if (selectedLevel === 'medium') levelSize = 3;
-    else if (selectedLevel === 'hard') levelSize = 4;
-    else if (selectedLevel === 'hell') levelSize = 4;
-    // Skip start screen and go directly to game screen
-    showGameScreen();
-    startGame(); // Auto start game when entering game screen
-});
-shopBtn.addEventListener('click', () => {
-    playSound('click');
-    showShopScreen();
-    updateShopCoins(); // Update shop coins when entering shop
-});
-skinsBtn.addEventListener('click', () => {
-    playSound('click');
-    showSkinsScreen();
-    updateSkinsCoins(); // Update skins coins when entering skins
-});
-
-backBtn.addEventListener('click', () => {
-    resetGame();
-    showStartScreen();
-});
-
-// Add back button to shop screen
-const shopBackBtn = document.querySelector('.shop-screen .back-btn');
-if (shopBackBtn) {
-    shopBackBtn.addEventListener('click', () => {
-        showStartScreen();
-        updateShopCoins(); // Update shop coins when returning to start screen
-    });
+.player-input label {
+  margin-right: 5px;
+  font-weight: 600;
 }
 
-// Add back button to skins screen
-const skinsBackBtn = document.querySelector('.skins-screen .back-btn');
-if (skinsBackBtn) {
-    skinsBackBtn.addEventListener('click', () => {
-        showStartScreen();
-        updateSkinsCoins(); // Update skins coins when returning to start screen
-    });
+.player-input input {
+  background: rgba(47, 140, 255, 0.1);
+  color: white;
+  border: 2px solid #bb86fc;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 16px;
 }
 
-// Add back button to leaderboard screen
-const leaderboardBackBtn = document.querySelector('.leaderboard-screen .back-btn');
-if (leaderboardBackBtn) {
-    leaderboardBackBtn.addEventListener('click', () => {
-        showStartScreen();
-    });
+.difficulty-select {
+  margin-bottom: 16px;
+  text-align: center;
 }
 
-// Load leaderboard when entering leaderboard screen
-leaderboardBtn.addEventListener('click', () => {
-    playSound('click');
-    showLeaderboardScreen();
-    loadLeaderboard();
-});
-
-// Current leaderboard filter
-let currentLeaderboardFilter = 'all';
-
-// Fungsi filter leaderboard
-function filterLeaderboard(filter) {
-    currentLeaderboardFilter = filter;
-    loadLeaderboard();
+.difficulty-select label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #bb86fc;
 }
 
-// Event listeners untuk filter buttons
-document.addEventListener('DOMContentLoaded', () => {
-    const filterButtons = document.querySelectorAll('.filter-btn');
-    filterButtons.forEach(button => {
-        button.addEventListener('click', (e) => {
-            playSound('click');
-            // Remove active class from all buttons
-            filterButtons.forEach(btn => btn.classList.remove('active'));
-            // Add active class to clicked button
-            e.target.classList.add('active');
-            // Filter leaderboard
-            const filter = e.target.dataset.filter;
-            filterLeaderboard(filter);
-        });
-    });
-});
-
-// Fungsi load leaderboard lokal dengan opsi sync Firebase
-function loadLeaderboard() {
-    const leaderboardContainer = document.getElementById('leaderboardContainer');
-    if (!leaderboardContainer) return;
-
-    leaderboardContainer.innerHTML = '<div class="leaderboard-entry loading"><div class="rank">Memuat leaderboard...</div></div>';
-
-    // Load from local storage first
-    const localScores = JSON.parse(localStorage.getItem('localLeaderboard') || '[]');
-
-    // Sort by score descending
-    localScores.sort((a, b) => b.score - a.score);
-
-    // Filter scores based on current filter
-    const filteredLocalScores = currentLeaderboardFilter === 'all' ? localScores : localScores.filter(score => score.level === currentLeaderboardFilter);
-
-    // Try to sync with Firebase if available
-    if (window.db && window.collection && window.onSnapshot) {
-        try {
-            const leaderboardRef = window.collection(window.db, 'leaderboard');
-
-            // Set up real-time listener for Firebase
-            window.onSnapshot(leaderboardRef, (querySnapshot) => {
-                const firebaseScores = [];
-                querySnapshot.forEach((doc) => {
-                    const playerName = doc.id;
-                    const data = doc.data();
-                    const scores = data.scores || [];
-                    scores.forEach(scoreData => {
-                        const score = scoreData.score || 0;
-                        // Only include scores greater than 0
-                        if (score > 0) {
-                            let timestamp;
-                            if (scoreData.timestamp && typeof scoreData.timestamp.toDate === 'function') {
-                                // Firestore Timestamp
-                                timestamp = scoreData.timestamp.toDate();
-                            } else if (scoreData.timestamp instanceof Date) {
-                                timestamp = scoreData.timestamp;
-                            } else if (typeof scoreData.timestamp === 'string') {
-                                timestamp = new Date(scoreData.timestamp);
-                            } else {
-                                timestamp = new Date();
-                            }
-                            firebaseScores.push({
-                                name: playerName,
-                                score: score,
-                                level: scoreData.level || 'unknown',
-                                timestamp: timestamp,
-                                source: 'firebase'
-                            });
-                        }
-                    });
-                });
-
-                let finalScores;
-                if (firebaseScores.length > 0) {
-                    // Use Firebase data if available (prioritize Firebase for admin edits)
-                    finalScores = firebaseScores;
-                } else {
-                    // If Firebase is empty (e.g., after reset), clear local storage and use empty list
-                    finalScores = [];
-                    localStorage.setItem('localLeaderboard', JSON.stringify([]));
-                }
-
-                // Sort by score descending (highest first)
-                finalScores.sort((a, b) => b.score - a.score);
-
-                // Filter scores based on current filter
-                const filteredFinalScores = currentLeaderboardFilter === 'all' ? finalScores : finalScores.filter(score => score.level === currentLeaderboardFilter);
-
-                displayLeaderboard(filteredFinalScores.slice(0, 10));
-
-                // Save final data to local storage (only if Firebase has data)
-                if (firebaseScores.length > 0) {
-                    localStorage.setItem('localLeaderboard', JSON.stringify(finalScores));
-                }
-            }, (error) => {
-                console.warn('Firebase sync failed, using local leaderboard:', error);
-                showCustomNotification('Sync Error', 'Failed to sync with online leaderboard. Using local data.');
-                // Fall back to local leaderboard
-                displayLeaderboard(filteredLocalScores.slice(0, 10));
-            });
-        } catch (error) {
-            console.warn('Firebase not properly initialized, using local leaderboard:', error);
-            // Fall back to local leaderboard
-            displayLeaderboard(filteredLocalScores.slice(0, 10));
-        }
-    } else {
-        // No Firebase, use local leaderboard
-        displayLeaderboard(filteredLocalScores.slice(0, 10));
-    }
+.difficulty-select select {
+  width: 260px;
+  max-width: 90%;
+  padding: 12px;
+  border: 2px solid #bb86fc;
+  border-radius: 8px;
+  background: #1a0d2e;
+  color: white;
+  font-size: 16px;
+  text-align: center;
 }
 
-// Fungsi display leaderboard
-function displayLeaderboard(scores) {
-    const leaderboardContainer = document.getElementById('leaderboardContainer');
-    if (!leaderboardContainer) return;
-
-    leaderboardContainer.innerHTML = '';
-
-    if (scores.length === 0) {
-        leaderboardContainer.innerHTML = '<div class="leaderboard-entry empty"><div class="rank">Belum ada skor yang tercatat.</div></div>';
-        return;
-    }
-
-    // Sort all scores by score descending
-    scores.sort((a, b) => b.score - a.score);
-
-    scores.slice(0, 10).forEach((score, index) => {
-        const entry = document.createElement('div');
-        entry.classList.add('leaderboard-entry');
-        if (index < 3) {
-            entry.classList.add(['gold', 'silver', 'bronze'][index]);
-        }
-
-        let dateStr;
-        try {
-            let date;
-            if (score.timestamp && typeof score.timestamp.toDate === 'function') {
-                // Firestore Timestamp
-                date = score.timestamp.toDate();
-            } else if (score.timestamp instanceof Date) {
-                date = score.timestamp;
-            } else if (typeof score.timestamp === 'string') {
-                date = new Date(score.timestamp);
-            } else if (typeof score.timestamp === 'number') {
-                date = new Date(score.timestamp);
-            } else {
-                date = null;
-            }
-            if (date && !isNaN(date.getTime())) {
-                const day = date.getDate().toString().padStart(2, '0');
-                const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                const year = date.getFullYear();
-                dateStr = `${day}/${month}/${year}`;
-            } else {
-                dateStr = 'N/A';
-            }
-        } catch (e) {
-            dateStr = 'N/A';
-        }
-
-        entry.innerHTML = `
-            <div class="rank">#${index + 1}</div>
-            <div class="name">${score.name}</div>
-            <div class="score">${score.score}</div>
-            <div class="level">${score.level}</div>
-            <div class="date">${dateStr}</div>
-        `;
-        leaderboardContainer.appendChild(entry);
-    });
+.stats {
+  display: flex;
+  gap: 20px;
 }
 
-// Fungsi save score ke leaderboard
-function saveScoreToLeaderboard(name, score, level) {
-    console.log('Attempting to save score:', { name, score, level });
-
-    if (!name || !name.trim()) {
-        name = 'Anonymous';
-        console.log('Name was empty, using Anonymous');
-    }
-
-    const playerName = name.trim();
-    const newScore = {
-        score: score,
-        level: level,
-        timestamp: new Date().toISOString()
-    };
-
-    console.log('New score object:', newScore);
-
-    // Save to local storage - keep all scores
-    const localScores = JSON.parse(localStorage.getItem('localLeaderboard') || '[]');
-    console.log('Current local scores count:', localScores.length);
-
-    const localScoreWithName = { ...newScore, name: playerName };
-
-    // Always add new score
-    localScores.push(localScoreWithName);
-    console.log('New score saved locally for player:', playerName);
-
-    // Keep only top 50 scores to prevent storage bloat
-    localScores.sort((a, b) => b.score - a.score);
-    const topScores = localScores.slice(0, 50);
-    localStorage.setItem('localLeaderboard', JSON.stringify(topScores));
-    console.log('Local leaderboard updated, top scores count:', topScores.length);
-
-    // Try to sync with Firebase if available
-    console.log('Checking Firebase availability...');
-    console.log('window.db exists:', !!window.db);
-    console.log('window.doc exists:', !!window.doc);
-    console.log('window.getDoc exists:', !!window.getDoc);
-    console.log('window.setDoc exists:', !!window.setDoc);
-
-    if (window.db && window.doc && window.getDoc && window.setDoc) {
-        console.log('Firebase functions available, attempting sync...');
-        try {
-            const playerDocRef = window.doc(window.db, 'leaderboard', playerName);
-            console.log('Created player docRef for:', playerName);
-
-            window.getDoc(playerDocRef).then((docSnap) => {
-                console.log('getDoc result - exists:', docSnap.exists);
-                let scores = [];
-                if (docSnap.exists) {
-                    scores = docSnap.data().scores || [];
-                    console.log('Existing scores for player:', scores.length);
-                } else {
-                    console.log('No existing document for player, creating new');
-                }
-
-                // Find the highest score for this player
-                const currentMaxScore = scores.length > 0 ? Math.max(...scores.map(s => s.score)) : 0;
-
-                if (newScore.score > currentMaxScore) {
-                    // Update to only keep the new highest score
-                    scores = [newScore];
-                    console.log('Updated to new highest score for player:', playerName);
-
-                    // Save back to Firebase
-                    return window.setDoc(playerDocRef, { scores: scores });
-                } else {
-                    console.log('New score not higher than existing max, skipping Firebase update for player:', playerName);
-                    return Promise.resolve(); // No update needed
-                }
-            }).then(() => {
-                console.log('Score synced with Firebase successfully for player:', playerName);
-            }).catch((error) => {
-                console.error('Firebase sync failed:', error);
-                console.error('Error details:', {
-                    code: error.code,
-                    message: error.message,
-                    stack: error.stack
-                });
-            });
-        } catch (error) {
-            console.error('Firebase setup error:', error);
-            console.error('Error details:', {
-                code: error.code,
-                message: error.message,
-                stack: error.stack
-            });
-        }
-    } else {
-        console.warn('Firebase not available, skipping sync');
-    }
+.stat {
+  background: rgba(47, 140, 255, 0.1);
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid var(--primary);
+  font-weight: 600;
 }
 
-// Fungsi animasi koin
-function animateCoin(card) {
-    const coinImg = document.createElement('img');
-    coinImg.src = 'coin.png';
-    coinImg.classList.add('coin-animation');
-    coinImg.style.position = 'absolute';
-    coinImg.style.width = '30px';
-    coinImg.style.height = '30px';
-    coinImg.style.left = `${card.offsetLeft + card.offsetWidth / 2 - 15}px`;
-    coinImg.style.top = `${card.offsetTop + card.offsetHeight / 2 - 15}px`;
-    coinImg.style.zIndex = '1000';
-    coinImg.style.pointerEvents = 'none';
-    document.body.appendChild(coinImg);
-
-    // Animasi ke arah koin total
-    const coinsEl = document.getElementById('coins');
-    const targetX = coinsEl.offsetLeft + coinsEl.offsetWidth / 2 - 15;
-    const targetY = coinsEl.offsetTop + coinsEl.offsetHeight / 2 - 15;
-
-    coinImg.style.transition = 'all 1s ease-in-out';
-    setTimeout(() => {
-        coinImg.style.left = `${targetX}px`;
-        coinImg.style.top = `${targetY}px`;
-        coinImg.style.opacity = '0';
-        coinImg.style.transform = 'scale(0.5)';
-    }, 10);
-
-    // Hapus elemen setelah animasi
-    setTimeout(() => {
-        document.body.removeChild(coinImg);
-    }, 1000);
+.buttons {
+  display: flex;
+  gap: 10px;
 }
 
-// Fungsi animasi koin di dalam kartu
-function animateCoinInCard(card) {
-    const img = card.querySelector('img');
-    if (!img) return;
-
-    // Buat beberapa koin untuk animasi yang lebih menarik
-    for (let i = 0; i < 3; i++) {
-        setTimeout(() => {
-            const coinImg = document.createElement('img');
-            coinImg.src = 'coin.png';
-            coinImg.classList.add('coin-in-card');
-            coinImg.style.position = 'absolute';
-            coinImg.style.width = '17px';
-            coinImg.style.height = '17px';
-            // Posisi di dalam gambar kartu
-            const imgRect = img.getBoundingClientRect();
-            const offsetX = (Math.random() - 0.5) * 20; // Random offset
-            const offsetY = (Math.random() - 0.5) * 20;
-            coinImg.style.left = `${imgRect.left + imgRect.width / 2 - 7.5 + offsetX}px`;
-            coinImg.style.top = `${imgRect.top + imgRect.height / 2 - 7.5 + offsetY}px`;
-            coinImg.style.zIndex = '1000';
-            coinImg.style.pointerEvents = 'none';
-            document.body.appendChild(coinImg);
-
-            // Animasi ke arah koin total
-            const coinsEl = document.getElementById('coins');
-            const coinsRect = coinsEl.getBoundingClientRect();
-            const targetX = coinsRect.left + coinsRect.width / 2 - 7.5;
-            const targetY = coinsRect.top + coinsRect.height / 2 - 7.5;
-
-            coinImg.style.transition = 'all 1.2s ease-in-out';
-            setTimeout(() => {
-                coinImg.style.left = `${targetX}px`;
-                coinImg.style.top = `${targetY}px`;
-                coinImg.style.opacity = '0';
-                coinImg.style.transform = 'scale(0.3)';
-            }, 10);
-
-            // Hapus elemen setelah animasi
-            setTimeout(() => {
-                if (document.body.contains(coinImg)) {
-                    document.body.removeChild(coinImg);
-                }
-            }, 1200);
-        }, i * 200); // Delay antar koin
-    }
+.game-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 20px auto;
+  max-width: 500px;
 }
 
-// Fungsi update shop coins display
-function updateShopCoins() {
-    const shopCoinsEl = document.getElementById('shopCoins');
-    if (shopCoinsEl) {
-        shopCoinsEl.textContent = totalCoins;
-    }
+.card {
+  aspect-ratio: 1;
+  background: linear-gradient(45deg, #2f2f2f, #1a1a1a);
+  border: 2px solid #bb86fc;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2em;
+  cursor: pointer;
+  transition: transform 0.3s, opacity 0.3s;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  color: #bb86fc;
 }
 
-// Fungsi update skins coins display
-function updateSkinsCoins() {
-    const skinsCoinsEl = document.getElementById('skinsCoins');
-    if (skinsCoinsEl) {
-        skinsCoinsEl.textContent = totalCoins;
-    }
+.card img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: fill;
+  border-radius: 8px;
 }
 
-// Fungsi beli skin
-function buySkin(skinId) {
-    const skin = skins.find(s => s.id === skinId);
-    if (!skin) return;
-
-    if (ownedSkins.includes(skinId)) {
-        // If already owned, activate the skin
-        activeSkin = skinId;
-        localStorage.setItem('activeSkin', activeSkin);
-        updateDisplay();
-        updateShopCoins();
-        updateSkinsCoins();
-        showCustomNotification(`${skin.name} Diaktifkan!`, 'Skin telah berhasil diaktifkan.');
-        renderSkins(); // Update skins display after activation
-        renderShop(); // Update shop display after activation
-    } else if (totalCoins >= skin.cost) {
-        totalCoins -= skin.cost;
-        localStorage.setItem('totalCoins', totalCoins);
-        ownedSkins.push(skinId);
-        localStorage.setItem('ownedSkins', JSON.stringify(ownedSkins));
-        // Auto activate after purchase
-        activeSkin = skinId;
-        localStorage.setItem('activeSkin', activeSkin);
-        updateDisplay();
-        updateShopCoins();
-        updateSkinsCoins();
-        showCustomNotification(`${skin.name} Dibeli!`, 'Skin telah berhasil dibeli dan diaktifkan.');
-        renderSkins(); // Update skins display after purchase
-        renderShop(); // Update shop display after purchase
-    } else {
-        showCustomNotification('Koin Tidak Cukup', 'Anda tidak memiliki cukup koin untuk membeli skin ini!');
-    }
+.card.flipped {
+  background: #eaf6ff;
+  color: var(--accent);
+  transform: rotateY(180deg);
 }
 
-// Fungsi beli item
-function buyItem(itemId) {
-    const item = items.find(i => i.id === itemId);
-    if (!item) return;
-
-    if (totalCoins >= item.cost) {
-        totalCoins -= item.cost;
-        localStorage.setItem('totalCoins', totalCoins);
-        ownedItems[itemId] = (ownedItems[itemId] || 0) + 1;
-        localStorage.setItem('ownedItems', JSON.stringify(ownedItems));
-        updateDisplay();
-        updateShopCoins();
-        updateSkinsCoins();
-        showCustomNotification(`${item.name} Dibeli!`, `Item telah berhasil dibeli. Sekarang Anda memiliki ${ownedItems[itemId]} ${item.name}.`);
-        renderShop(); // Update shop display after purchase
-    } else {
-        showCustomNotification('Koin Tidak Cukup', 'Anda tidak memiliki cukup koin untuk membeli item ini!');
-    }
+.card.matched {
+  background: #00ff88;
+  cursor: default;
 }
 
-// Fungsi update item buttons di game screen
-function updateItemButtons() {
-    const hintBtn = document.getElementById('hintBtn');
-    const freezeBtn = document.getElementById('freezeBtn');
-
-    const hintCount = ownedItems['hint'] || 0;
-    const freezeCount = ownedItems['freeze'] || 0;
-
-    hintBtn.textContent = `💡 Petunjuk (${hintCount})`;
-    freezeBtn.textContent = `❄️ Bekukan (${freezeCount})`;
-
-    hintBtn.disabled = hintCount <= 0 || !gameStarted || gameOver;
-    freezeBtn.disabled = freezeCount <= 0 || !gameStarted || gameOver;
+.card.matched:hover {
+  transform: none;
 }
 
-// Add event listeners for item buttons
-document.addEventListener('DOMContentLoaded', () => {
-    const hintBtn = document.getElementById('hintBtn');
-    const freezeBtn = document.getElementById('freezeBtn');
-
-    if (hintBtn) {
-        hintBtn.addEventListener('click', () => {
-            console.log('Hint button clicked');
-            playSound('click');
-            useItem('hint');
-        });
-    }
-
-    if (freezeBtn) {
-        freezeBtn.addEventListener('click', () => {
-            console.log('Freeze button clicked');
-            playSound('click');
-            useItem('freeze');
-        });
-    }
-});
-
-// Fungsi gunakan item
-function useItem(itemId) {
-    if ((ownedItems[itemId] || 0) <= 0 || !gameStarted || gameOver) return;
-
-    const item = items.find(i => i.id === itemId);
-    if (!item) return;
-
-    if (itemId === 'hint') {
-        // Reveal all cards for 3 seconds
-        const cards = Array.from(gameBoard.children);
-        cards.forEach(card => {
-            if (!card.classList.contains('matched')) {
-                const img = card.querySelector('img');
-                img.style.display = 'block';
-                card.classList.add('revealed');
-            }
-        });
-        setTimeout(() => {
-            cards.forEach(card => {
-                if (card.classList.contains('revealed') && !card.classList.contains('matched')) {
-                    const img = card.querySelector('img');
-                    img.style.display = 'none';
-                    card.classList.remove('revealed');
-                }
-            });
-        }, 1500);
-        ownedItems[itemId]--;
-        localStorage.setItem('ownedItems', JSON.stringify(ownedItems));
-        const remaining = ownedItems[itemId];
-    } else if (itemId === 'freeze') {
-        // Freeze timer for 10 seconds
-        clearInterval(timerInterval);
-        ownedItems[itemId]--;
-        localStorage.setItem('ownedItems', JSON.stringify(ownedItems));
-        const remaining = ownedItems[itemId];
-        setTimeout(() => {
-            if (gameStarted && !gameOver) {
-                timerInterval = setInterval(() => {
-                    timer++;
-                    timerEl.textContent = `${formatTime(timer)} / ${formatTime(timeLimit)}`;
-                    if (timer >= timeLimit && !gameOver) {
-                        gameOver = true;
-                        playSound('gameOver');
-                        showCustomNotification('Game Over', 'Waktu habis!\n COBALAH LAGI');
-                        clearInterval(timerInterval);
-                        setTimeout(() => {
-                            resetGame();
-                            showStartScreen();
-                        }, 3000);
-                    }
-                    updateDisplay();
-                }, 1000);
-            }
-        }, 10000);
-    }
-
-    updateItemButtons();
-    renderShop();
+.shop-screen {
+  display: none;
+  width: 100%;
+  max-width: 700px;
+  padding: 20px;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(26, 13, 46, 0.95) 0%, rgba(47, 140, 255, 0.1) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 25px;
+  border: 2px solid rgba(187, 134, 252, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
 }
 
-// Fungsi show custom notification
-function showCustomNotification(title, message) {
-    playSound('notification'); // Play notification sound when showing notification
-    const notification = document.getElementById('customNotification');
-    const titleEl = document.getElementById('notificationTitle');
-    const messageEl = document.getElementById('notificationMessage');
-    const closeBtn = document.getElementById('closeNotification');
-
-    titleEl.textContent = title;
-    messageEl.textContent = message;
-    messageEl.style.whiteSpace = 'pre-line'; // Preserve newlines
-
-    notification.classList.add('show');
-
-    closeBtn.onclick = () => {
-        notification.classList.remove('show');
-    };
-
-    // Auto close after 5 seconds
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 5000);
+.shop-screen::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(187, 134, 252, 0.05) 0%, transparent 70%);
+  animation: float 8s ease-in-out infinite;
 }
 
-// Fungsi render skins
-function renderSkins() {
-    const skinsGrid = document.getElementById('skinsGrid');
-    if (!skinsGrid) return;
-
-    skinsGrid.innerHTML = '';
-
-    // Filter hanya skins yang sudah owned
-    const ownedSkinsData = skins.filter(skin => ownedSkins.includes(skin.id));
-
-    ownedSkinsData.forEach(skin => {
-        const skinItem = document.createElement('div');
-        skinItem.classList.add('skin-item');
-        if (activeSkin === skin.id) {
-            skinItem.classList.add('active');
-        }
-
-        skinItem.innerHTML = `
-            <img src="${skin.images[0]}" alt="${skin.name}" class="skin-preview">
-            <h3>${skin.name}</h3>
-            <p>${skin.cost} coins</p>
-            <button class="btn ${ownedSkins.includes(skin.id) ? 'active-btn' : ''}" onclick="buySkin('${skin.id}')">
-                ${ownedSkins.includes(skin.id) ? (activeSkin === skin.id ? 'Aktif' : 'Aktifkan') : 'Beli'}
-            </button>
-        `;
-
-        skinsGrid.appendChild(skinItem);
-    });
+.shop-screen.show {
+  display: block;
 }
 
-// Items data
-const items = [
-    {
-        id: 'hint',
-        name: 'Petunjuk',
-        description: 'Ungkap kartu selama 1,5 detik',
-        cost: 50,
-        image: 'petunjuk.jpeg'
-    },
-    {
-        id: 'freeze',
-        name: 'Bekukan Waktu',
-        description: 'Jeda timer selama 3 detik',
-        cost: 100,
-        image: 'beku.jpeg'
-    }
-];
-
-// Load items from localStorage
-let ownedItems = JSON.parse(localStorage.getItem('ownedItems')) || { hint: 0, freeze: 0 };
-
-// Fungsi render shop
-function renderShop() {
-    const shopItemsEl = document.getElementById('shopItems');
-    if (!shopItemsEl) return;
-
-    shopItemsEl.innerHTML = '';
-
-    // Get current active tab
-    const activeTab = document.querySelector('.shop-tabs .tab-btn.active');
-    const tabType = activeTab ? activeTab.dataset.tab : 'skins';
-
-    if (tabType === 'skins') {
-        skins.forEach(skin => {
-            if (skin.cost > 0) { // Only show skins that cost coins
-                const shopItem = document.createElement('div');
-                shopItem.classList.add('shop-item');
-
-                shopItem.innerHTML = `
-                    <img src="${skin.images[0]}" alt="${skin.name}" class="skin-preview">
-                    <h3>${skin.name} Skin Pack</h3>
-                    <p>${skin.cost} coins</p>
-                    <button class="btn" onclick="buySkin('${skin.id}')">
-                        ${ownedSkins.includes(skin.id) ? 'Owned' : 'Buy'}
-                    </button>
-                `;
-
-                shopItemsEl.appendChild(shopItem);
-            }
-        });
-    } else if (tabType === 'items') {
-        items.forEach(item => {
-            const shopItem = document.createElement('div');
-            shopItem.classList.add('shop-item');
-
-            const quantity = ownedItems[item.id] || 0;
-
-            shopItem.innerHTML = `
-                <img src="${item.image}" alt="${item.name}" class="item-preview">
-                <h3>${item.name}${quantity > 0 ? ` x${quantity}` : ''}</h3>
-                <p>${item.description}</p>
-                <p>${item.cost} coins</p>
-                <button class="btn" onclick="buyItem('${item.id}')">
-                    ${quantity > 0 ? `Owned x${quantity}` : 'Buy'}
-                </button>
-            `;
-
-            shopItemsEl.appendChild(shopItem);
-        });
-    }
+.shop-screen h1 {
+  color: #bb86fc;
+  margin-bottom: 20px;
 }
 
-// Fungsi efek percikan saat flip kartu
-function createSparkles(card) {
-    const numSparkles = 8; // Jumlah percikan
-    const cardRect = card.getBoundingClientRect();
-
-    for (let i = 0; i < numSparkles; i++) {
-        const sparkle = document.createElement('div');
-        sparkle.classList.add('sparkle');
-        sparkle.style.position = 'absolute';
-        sparkle.style.width = '4px';
-        sparkle.style.height = '4px';
-        sparkle.style.background = 'radial-gradient(circle, #ffdd44, #ffaa00, #ff6600)';
-        sparkle.style.borderRadius = '50%';
-        sparkle.style.boxShadow = '0 0 6px #ffaa00';
-        sparkle.style.zIndex = '1000';
-        sparkle.style.pointerEvents = 'none';
-
-        // Posisi awal di sekitar tepi kartu (di luar kartu)
-        const side = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
-        let startX, startY;
-        if (side === 0) { // Top
-            startX = cardRect.left + Math.random() * cardRect.width;
-            startY = cardRect.top - 5;
-        } else if (side === 1) { // Right
-            startX = cardRect.right + 5;
-            startY = cardRect.top + Math.random() * cardRect.height;
-        } else if (side === 2) { // Bottom
-            startX = cardRect.left + Math.random() * cardRect.width;
-            startY = cardRect.bottom + 5;
-        } else { // Left
-            startX = cardRect.left - 5;
-            startY = cardRect.top + Math.random() * cardRect.height;
-        }
-        sparkle.style.left = `${startX}px`;
-        sparkle.style.top = `${startY}px`;
-
-        document.body.appendChild(sparkle);
-
-        // Animasi percikan ke luar
-        const angle = Math.random() * 2 * Math.PI; // Sudut acak
-        const distance = 50 + Math.random() * 30; // Jarak acak
-        const endX = startX + Math.cos(angle) * distance;
-        const endY = startY + Math.sin(angle) * distance;
-
-        sparkle.style.transition = 'all 0.8s ease-out';
-        setTimeout(() => {
-            sparkle.style.left = `${endX}px`;
-            sparkle.style.top = `${endY}px`;
-            sparkle.style.opacity = '0';
-            sparkle.style.transform = 'scale(0.5)';
-        }, 10);
-
-        // Hapus elemen setelah animasi
-        setTimeout(() => {
-            if (document.body.contains(sparkle)) {
-                document.body.removeChild(sparkle);
-            }
-        }, 800);
-    }
+.shop-screen p {
+  color: white;
+  margin-bottom: 20px;
 }
 
-// Initialize skins and shop on page load
-document.addEventListener('DOMContentLoaded', () => {
-    renderSkins();
-    renderShop();
+.total-coins-display {
+  background: rgba(47, 140, 255, 0.1);
+  padding: 15px;
+  border-radius: 10px;
+  border: 2px solid #bb86fc;
+  font-weight: 600;
+  font-size: 18px;
+  color: white;
+  margin-bottom: 20px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 
-    // Add event listeners for shop tabs
-    const shopTabButtons = document.querySelectorAll('.shop-tabs .tab-btn');
-    shopTabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            playSound('click');
-            // Remove active class from all buttons
-            shopTabButtons.forEach(btn => btn.classList.remove('active'));
-            // Add active class to clicked button
-            button.classList.add('active');
-            // Re-render shop
-            renderShop();
-        });
-    });
+.back-btn {
+  background: rgba(187, 134, 252, 0.1);
+  border: 1px solid #bb86fc;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
 
-    // Initialize audio context on first user interaction
-    const initAudio = async () => {
-        const ctx = getAudioContext();
-        if (ctx.state === 'suspended') {
-            await ctx.resume();
-        }
-        // Start background music after audio context is initialized
-        playBackgroundMusic();
-        document.removeEventListener('click', initAudio);
-        document.removeEventListener('keydown', initAudio);
-    };
-    document.addEventListener('click', initAudio);
-    document.addEventListener('keydown', initAudio);
+.back-btn:hover {
+  background: #3700b3;
+  color: white;
+}
 
-    // Stop background music when page is unloaded (user closes tab or navigates away)
-    window.addEventListener('beforeunload', () => {
-        stopBackgroundMusic();
-        if (audioContext && audioContext.state !== 'closed') {
-            audioContext.close().catch(console.error);
-        }
-    });
+.shop-screen .back-btn {
+  margin-top: 30px;
+}
 
-    // Stop background music when tab becomes hidden (user switches tabs or minimizes)
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            stopBackgroundMusic();
-        }
-    });
+.shop-items {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  justify-content: flex-start;
+  overflow-x: auto;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+}
 
-    // Start entrance animation
-    setTimeout(() => {
-        document.querySelector('.meteor').style.animation = 'meteorFallExplosion 3s ease-in-out forwards';
-        setTimeout(() => {
-            document.querySelector('.meteor').style.display = 'none';
-            // Show credits notification when meteor explodes
-            showCustomNotification('Anggota Kelompok', 'WEB INI DIBUAT OLEH:\n1. Cahyo Sigit Gurnito 11\n2. Muhammad Arif Kurniawan 25');
-            // Fade in start screen after credits disappear (5 seconds)
-            setTimeout(() => {
-                document.querySelector('.start-screen').style.opacity = '1';
-            }, 5000);
-        }, 3000);
-    }, 500); // Delay before starting animation
-});
+.shop-item {
+  background: linear-gradient(135deg, rgba(47, 140, 255, 0.1) 0%, rgba(187, 134, 252, 0.1) 100%);
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  min-width: 150px;
+  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.shop-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.shop-item:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.shop-item:hover::before {
+  opacity: 1;
+}
+
+.shop-item img {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.shop-item h3 {
+  margin: 10px 0;
+  color: white;
+  font-size: 16px;
+}
+
+.shop-item p {
+  margin: 5px 0 15px;
+  color: #bb86fc;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.shop-item .btn {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+}
+
+/* Game Over Notification */
+.game-over-notification {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+.game-over-notification.show {
+  display: flex;
+}
+
+.notification-content {
+  background: rgba(26, 13, 46, 0.95);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  border: 1px solid rgba(187, 134, 252, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  padding: 30px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+}
+
+.notification-content h2 {
+  color: #bb86fc;
+  margin-bottom: 15px;
+  font-size: 24px;
+}
+
+.notification-content p {
+  color: white;
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+/* Custom Notification */
+.custom-notification {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.custom-notification.show {
+  display: flex;
+}
+
+.custom-notification .notification-content {
+  background: linear-gradient(135deg, rgba(26, 13, 46, 0.95) 0%, rgba(47, 140, 255, 0.1) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 25px;
+  border: 2px solid rgba(187, 134, 252, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  padding: 40px;
+  text-align: center;
+  max-width: 450px;
+  width: 90%;
+  position: relative;
+  overflow: hidden;
+}
+
+.custom-notification .notification-content::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(187, 134, 252, 0.1) 0%, transparent 70%);
+  animation: float 6s ease-in-out infinite;
+}
+
+.custom-notification .notification-content h2 {
+  color: #bb86fc;
+  margin-bottom: 20px;
+  font-size: 28px;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(187, 134, 252, 0.5);
+}
+
+.custom-notification .notification-content p {
+  color: white;
+  margin-bottom: 30px;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.custom-notification .notification-content .btn {
+  background: linear-gradient(135deg, #bb86fc 0%, #9c4dcc 100%);
+  border-color: #bb86fc;
+  color: #1a0d2e;
+  box-shadow: 0 0 20px rgba(187, 134, 252, 0.3);
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.custom-notification .notification-content .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(187, 134, 252, 0.4);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.coin-icon {
+  width: 17px;
+  height: 17px;
+  animation: coin-spin 2s linear infinite;
+}
+
+@keyframes coin-spin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+}
+
+/* Skins Screen */
+.skins-screen {
+  display: none;
+  width: 100%;
+  max-width: 700px;
+  padding: 20px;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(26, 13, 46, 0.95) 0%, rgba(47, 140, 255, 0.1) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 25px;
+  border: 2px solid rgba(187, 134, 252, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.skins-screen::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(187, 134, 252, 0.05) 0%, transparent 70%);
+  animation: float 8s ease-in-out infinite;
+}
+
+.skins-screen.show {
+  display: block;
+}
+
+.skins-screen h1 {
+  color: #bb86fc;
+  margin-bottom: 20px;
+}
+
+/* Leaderboard Screen */
+.leaderboard-screen {
+  display: none;
+  width: 100%;
+  max-width: 700px;
+  padding: 20px;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(26, 13, 46, 0.95) 0%, rgba(47, 140, 255, 0.1) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 25px;
+  border: 2px solid rgba(187, 134, 252, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.leaderboard-screen::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(187, 134, 252, 0.05) 0%, transparent 70%);
+  animation: float 8s ease-in-out infinite;
+}
+
+.leaderboard-screen.show {
+  display: block;
+}
+
+.leaderboard-screen h1 {
+  color: #bb86fc;
+  margin-bottom: 20px;
+}
+
+.leaderboard-filters {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  width: auto !important;
+  min-width: 100px;
+  padding: 12px 16px;
+  font-size: 16px;
+}
+
+.tab-btn {
+  width: auto !important;
+  min-width: 120px;
+  padding: 12px 16px;
+  font-size: 16px;
+}
+
+.leaderboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 10px;
+  background: rgba(47, 140, 255, 0.1);
+  border-radius: 10px;
+  border: 1px solid #bb86fc;
+}
+
+.leaderboard-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(47, 140, 255, 0.1) 0%, rgba(187, 134, 252, 0.1) 100%);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  padding: 10px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.leaderboard-entry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.leaderboard-entry.loading,
+.leaderboard-entry.empty,
+.leaderboard-entry.error {
+  justify-content: center;
+  font-style: italic;
+  color: #7a7a7a;
+}
+
+.leaderboard-entry.error {
+  color: #ff6b6b;
+}
+
+.rank {
+  font-weight: bold;
+  color: #bb86fc;
+  min-width: 50px;
+}
+
+.name {
+  flex: 1;
+  text-align: left;
+  color: white;
+}
+
+.score {
+  font-weight: bold;
+  color: #00ff88;
+  min-width: 60px;
+}
+
+.level {
+  color: #ffaa00;
+  min-width: 60px;
+}
+
+.date {
+  color: #7a7a7a;
+  font-size: 12px;
+  min-width: 80px;
+}
+
+.skins-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  justify-content: flex-start;
+  overflow-x: auto;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+}
+
+.skin-item {
+  background: linear-gradient(135deg, rgba(47, 140, 255, 0.1) 0%, rgba(187, 134, 252, 0.1) 100%);
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  padding: 8px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.skin-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.skin-item:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.skin-item:hover::before {
+  opacity: 1;
+}
+
+.skin-item.active {
+  border-color: #00ff88;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.5), inset 0 0 10px rgba(0, 255, 136, 0.1);
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(187, 134, 252, 0.1) 100%);
+}
+
+.skin-preview {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.skin-item h3 {
+  margin: 8px 0;
+  color: white;
+  font-size: 14px;
+}
+
+.skin-item p {
+  margin: 4px 0 10px;
+  color: #bb86fc;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.skin-item .btn {
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+}
+
+.skin-item .btn.active-btn {
+  width: 120px;
+  padding: 8px;
+  font-size: 14px;
+}
+
+/* Coin Animation */
+.coin-animation {
+  transition: all 1s ease-in-out;
+}
+
+.coin-in-card {
+  transition: all 1.2s ease-in-out;
+}
+
+/* Sparkle Animation */
+.sparkle {
+  animation: sparkle-fade 0.8s ease-out forwards;
+}
+
+@keyframes sparkle-fade {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+/* Responsive Design */
+
+/* Tablet Styles */
+@media (max-width: 768px) {
+  .start-screen, .game-screen, .shop-screen, .skins-screen, .leaderboard-screen {
+    max-width: 90%;
+    padding: 20px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .btn {
+    width: 240px;
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+
+  .level-select, .player-input {
+    margin-right: 0;
+  }
+
+  .stats {
+    justify-content: center;
+    gap: 15px;
+  }
+
+  .game-board {
+    gap: 8px;
+    max-width: 400px;
+  }
+
+  .card {
+    font-size: 1.8em;
+  }
+
+  .header {
+    gap: 15px;
+  }
+
+  .header-image {
+    max-width: 40px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  .skins-grid {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    justify-content: flex-start;
+    overflow-x: auto;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+  }
+
+  .skin-preview {
+    width: 80px;
+    height: 80px;
+  }
+
+  .notification-content {
+    max-width: 350px;
+    padding: 25px;
+  }
+}
+
+/* Mobile Styles */
+@media (max-width: 480px) {
+  .start-screen, .game-screen, .shop-screen, .skins-screen, .leaderboard-screen {
+    max-width: 95%;
+    padding: 15px;
+  }
+
+  .logo-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .side-logo {
+    width: 50px;
+    height: 50px;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .btn {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .difficulty-select select, .level-select select, .player-input input {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .controls {
+    gap: 10px;
+  }
+
+  .stats {
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .stat {
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  .game-board {
+    gap: 6px;
+    max-width: 100%;
+  }
+
+  .card {
+    font-size: 1.5em;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .header-image {
+    max-width: 35px;
+  }
+
+  h1 {
+    font-size: 18px;
+  }
+
+  .skins-grid {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px;
+  }
+
+  .skin-preview {
+    width: 60px;
+    height: 60px;
+  }
+
+  .skin-item h3 {
+    font-size: 12px;
+  }
+
+  .skin-item p {
+    font-size: 10px;
+  }
+
+  .skin-item .btn {
+    padding: 5px;
+    font-size: 11px;
+  }
+
+  .total-coins-display {
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  .notification-content {
+    max-width: 90%;
+    padding: 20px;
+  }
+
+  .notification-content h2 {
+    font-size: 22px;
+  }
+
+  .notification-content p {
+    font-size: 16px;
+  }
+
+  .custom-notification .notification-content .btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+}
+
+/* Very Small Screens */
+@media (max-width: 360px) {
+  .side-logo {
+    width: 46px;
+    height: 46px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .leaderboard-entry {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .rank {
+    min-width: auto;
+  }
+
+  .name {
+    flex: none;
+  }
+
+  .notification-content {
+    padding: 15px;
+  }
+
+  .notification-content h2 {
+    font-size: 18px;
+  }
+
+  .game-board {
+    gap: 4px;
+  }
+
+  .card {
+    font-size: 1.2em;
+  }
+
+  .stats {
+    font-size: 12px;
+  }
+}
