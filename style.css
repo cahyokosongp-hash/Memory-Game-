@@ -1224,6 +1224,13 @@ h1 {
 
 /* Mobile Styles */
 @media (max-width: 480px) {
+  body {
+    transform: scale(0.8);
+    transform-origin: top center;
+    width: 125%;
+    height: 125%;
+  }
+
   .start-screen, .game-screen, .shop-screen, .skins-screen, .leaderboard-screen {
     max-width: 95%;
     padding: 15px;
