@@ -45,6 +45,27 @@ const skins = [
 let ownedSkins = JSON.parse(localStorage.getItem('ownedSkins')) || ['fajri'];
 let activeSkin = localStorage.getItem('activeSkin') || 'fajri';
 
+// Items data
+const items = [
+    {
+        id: 'hint',
+        name: 'Petunjuk',
+        description: 'Ungkap kartu selama 0,5 detik',
+        cost: 50,
+        image: 'petunjuk.jpeg'
+    },
+    {
+        id: 'freeze',
+        name: 'Bekukan Waktu',
+        description: 'Jeda timer selama 2 detik',
+        cost: 100,
+        image: 'beku.jpeg'
+    }
+];
+
+// Load items from localStorage
+let ownedItems = JSON.parse(localStorage.getItem('ownedItems')) || { hint: 0, freeze: 0 };
+
 // Sound settings
 let soundEnabled = localStorage.getItem('soundEnabled') !== 'false'; // Default true
 let backgroundMusicSource = null; // For background music
@@ -530,8 +551,21 @@ function shuffleBoard() {
     const centerX = gameBoard.offsetWidth / 2;
     const centerY = gameBoard.offsetHeight / 2;
 
-    // Step 1: Flip all cards back, but in hell mode, keep matched pairs
-    if (levelName === 'hell') {
+    // Step 1: Flip all cards back
+    let totalPairs;
+    if (levelSize === 2) totalPairs = 2;
+    else if (levelSize === 3) totalPairs = 3;
+    else if (levelSize === 4) totalPairs = 8;
+
+    if (levelName === 'hell' && matchedPairs === totalPairs) {
+        // Completion shuffle in hell mode: reset all cards
+        cards.forEach(card => {
+            card.classList.remove('matched', 'flipped');
+            const img = card.querySelector('img');
+            img.style.display = 'none';
+        });
+    } else if (levelName === 'hell') {
+        // Mismatch shuffle in hell mode: keep matched pairs visible
         cards.forEach(card => {
             if (!card.classList.contains('matched')) {
                 card.classList.remove('flipped');
@@ -540,6 +574,7 @@ function shuffleBoard() {
             }
         });
     } else {
+        // Non-hell modes: reset all cards
         cards.forEach(card => {
             card.classList.remove('matched', 'flipped');
             const img = card.querySelector('img');
@@ -567,34 +602,64 @@ function shuffleBoard() {
             const cardData = [...selectedAnimals, ...selectedAnimals]; // Duplikat untuk pair
             shuffleArray(cardData); // Shuffle posisi
 
-            cards.forEach((card, index) => {
-                card.dataset.animal = cardData[index];
-                const img = card.querySelector('img');
-                img.src = cardData[index];
-                img.alt = cardData[index].replace('.jpeg', '');
-                // Apply special styling for ira1 and sri2
-                if (cardData[index].includes('ira1.jpeg') || cardData[index].includes('sri2.jpeg')) {
-                    img.style.width = '120%';
-                    img.style.height = '120%';
-                    img.style.objectFit = 'cover';
-                } else {
-                    img.style.width = '';
-                    img.style.height = '';
-                    img.style.objectFit = '';
-                }
-            });
+                cards.forEach((card, index) => {
+                    card.classList.remove('matched', 'flipped'); // Reset kartu untuk round baru
+                    card.dataset.animal = cardData[index];
+                    const img = card.querySelector('img');
+                    img.src = cardData[index];
+                    img.alt = cardData[index].replace('.jpeg', '');
+                    img.style.display = 'none'; // Sembunyikan gambar
+                    // Apply special styling for ira1 and sri2
+                    if (cardData[index].includes('ira1.jpeg') || cardData[index].includes('sri2.jpeg')) {
+                        img.style.width = '120%';
+                        img.style.height = '120%';
+                        img.style.objectFit = 'cover';
+                    } else {
+                        img.style.width = '';
+                        img.style.height = '';
+                        img.style.objectFit = '';
+                    }
+                });
         } else if (levelName === 'hell') {
-            // For hell mode, shuffle only unmatched cards' images, keep matched unchanged
-            const unmatchedCards = cards.filter(card => !card.classList.contains('matched'));
-            const unmatchedImages = unmatchedCards.map(card => card.dataset.animal);
-            shuffleArray(unmatchedImages);
-            unmatchedCards.forEach((card, index) => {
-                card.dataset.animal = unmatchedImages[index];
-                const img = card.querySelector('img');
-                img.src = unmatchedImages[index];
-                img.alt = unmatchedImages[index].replace('.jpeg', '');
-            });
-            // Matched cards keep their images unchanged
+            if (matchedPairs === totalPairs) {
+                // Completion shuffle: shuffle all images like small levels
+                const pairsNeeded = cards.length / 2;
+                const activeSkinData = skins.find(skin => skin.id === activeSkin);
+                const shuffledImages = [...activeSkinData.images];
+                shuffleArray(shuffledImages);
+                const selectedAnimals = shuffledImages.slice(0, pairsNeeded);
+                const cardData = [...selectedAnimals, ...selectedAnimals]; // Duplikat untuk pair
+                shuffleArray(cardData); // Shuffle posisi
+
+                cards.forEach((card, index) => {
+                    card.dataset.animal = cardData[index];
+                    const img = card.querySelector('img');
+                    img.src = cardData[index];
+                    img.alt = cardData[index].replace('.jpeg', '');
+                    // Apply special styling for ira1 and sri2
+                    if (cardData[index].includes('ira1.jpeg') || cardData[index].includes('sri2.jpeg')) {
+                        img.style.width = '120%';
+                        img.style.height = '120%';
+                        img.style.objectFit = 'cover';
+                    } else {
+                        img.style.width = '';
+                        img.style.height = '';
+                        img.style.objectFit = '';
+                    }
+                });
+            } else {
+                // Mismatch shuffle: shuffle only unmatched cards' images, keep matched unchanged
+                const unmatchedCards = cards.filter(card => !card.classList.contains('matched'));
+                const unmatchedImages = unmatchedCards.map(card => card.dataset.animal);
+                shuffleArray(unmatchedImages);
+                unmatchedCards.forEach((card, index) => {
+                    card.dataset.animal = unmatchedImages[index];
+                    const img = card.querySelector('img');
+                    img.src = unmatchedImages[index];
+                    img.alt = unmatchedImages[index].replace('.jpeg', '');
+                });
+                // Matched cards keep their images unchanged
+            }
         } else {
             // For other levels, just shuffle positions
             const cardData = cards.map(card => card.dataset.animal);
@@ -616,9 +681,7 @@ function shuffleBoard() {
 
         // Reset matched pairs, moves, and timer for next round, then resume timer
         setTimeout(() => {
-            if (levelName !== 'hell') {
-                matchedPairs = 0;
-            }
+            matchedPairs = 0; // Always reset matched pairs for continuous shuffling in hell mode
             moves = 0;
             if (levelName !== 'hell') {
                 timer = 0;
@@ -1249,7 +1312,7 @@ function useItem(itemId) {
                     card.classList.remove('revealed');
                 }
             });
-        }, 1500);
+        }, 500);
         ownedItems[itemId]--;
         localStorage.setItem('ownedItems', JSON.stringify(ownedItems));
         const remaining = ownedItems[itemId];
@@ -1277,7 +1340,7 @@ function useItem(itemId) {
                     updateDisplay();
                 }, 1000);
             }
-        }, 10000);
+        }, 2000);
     }
 
     updateItemButtons();
@@ -1337,27 +1400,6 @@ function renderSkins() {
         skinsGrid.appendChild(skinItem);
     });
 }
-
-// Items data
-const items = [
-    {
-        id: 'hint',
-        name: 'Petunjuk',
-        description: 'Ungkap kartu selama 1,5 detik',
-        cost: 50,
-        image: 'petunjuk.jpeg'
-    },
-    {
-        id: 'freeze',
-        name: 'Bekukan Waktu',
-        description: 'Jeda timer selama 3 detik',
-        cost: 100,
-        image: 'beku.jpeg'
-    }
-];
-
-// Load items from localStorage
-let ownedItems = JSON.parse(localStorage.getItem('ownedItems')) || { hint: 0, freeze: 0 };
 
 // Fungsi render shop
 function renderShop() {
