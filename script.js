@@ -50,7 +50,7 @@ const items = [
     {
         id: 'hint',
         name: 'Petunjuk',
-        description: 'Ungkap kartu selama 0,5 detik',
+        description: 'Ungkap kartu selama 1 detik',
         cost: 50,
         image: 'petunjuk.jpeg'
     },
@@ -1295,7 +1295,7 @@ function useItem(itemId) {
     if (!item) return;
 
     if (itemId === 'hint') {
-        // Reveal all cards for 3 seconds
+        // Reveal all cards for 1 second
         const cards = Array.from(gameBoard.children);
         cards.forEach(card => {
             if (!card.classList.contains('matched')) {
@@ -1312,7 +1312,7 @@ function useItem(itemId) {
                     card.classList.remove('revealed');
                 }
             });
-        }, 500);
+        }, 1000);
         ownedItems[itemId]--;
         localStorage.setItem('ownedItems', JSON.stringify(ownedItems));
         const remaining = ownedItems[itemId];
